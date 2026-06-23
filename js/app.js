@@ -22,29 +22,52 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettingsFromStorage();
     initTheme();
     bindEvents();
-    
+    setupMoneyInputs();
+
     // Initial Calculation
     runFullSimulation();
 
     // --- Core Logic ---
 
+    // Read a numeric field, tolerating thousands separators (commas) in money inputs
+    function numFromField(id) {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        return parseFloat(el.value.toString().replace(/,/g, '')) || 0;
+    }
+
     function getParamsFromForm() {
         return {
-            initialCapital: parseFloat(document.getElementById('initial-capital').value) || 0,
-            investmentYears: parseInt(document.getElementById('investment-years').value) || 30,
+            initialCapital: numFromField('initial-capital'),
+            investmentYears: Math.min(50, Math.max(1, parseInt(document.getElementById('investment-years').value) || 30)),
             inflationRate: parseFloat(document.getElementById('inflation-rate').value) || 0,
-            
-            propertyValue: parseFloat(document.getElementById('property-value').value) || 0,
-            monthlyRent: parseFloat(document.getElementById('monthly-rent').value) || 0,
+
+            propertyValue: numFromField('property-value'),
+            monthlyRent: numFromField('monthly-rent'),
             mortgageRate: parseFloat(document.getElementById('mortgage-rate').value) || 0,
             propertyAppreciation: parseFloat(document.getElementById('property-appreciation').value) || 0,
             brokerFee: parseFloat(document.getElementById('broker-fee').value) || 0,
             lawyerFee: parseFloat(document.getElementById('lawyer-fee').value) || 0,
             maintenanceYearly: parseFloat(document.getElementById('maintenance-yearly').value) || 0,
-            vacancyMonths: parseFloat(document.getElementById('vacancy-months').value) || 0,
+            vacancyMonths: Math.min(12, Math.max(0, parseFloat(document.getElementById('vacancy-months').value) || 0)),
             
             stockReturn: parseFloat(document.getElementById('stock-return').value) || 0,
             managementFee: parseFloat(document.getElementById('management-fee').value) || 0,
+
+            // Newly exposed assumptions (previously hard-coded)
+            mortgageYears: Math.min(40, Math.max(1, parseInt(document.getElementById('mortgage-years').value) || 30)),
+            rentalTax: Math.max(0, numFromField('rental-tax')),
+            saleCostPct: Math.max(0, numFromField('sale-cost-pct')),
+            appraiserFee: Math.max(0, numFromField('appraiser-fee')),
+            advisorFee: Math.max(0, numFromField('advisor-fee')),
+            insuranceYearly: Math.max(0, numFromField('insurance-yearly')),
+            vat: Math.max(0, numFromField('vat')),
+            reGainsTax: Math.max(0, numFromField('re-gains-tax')),
+            stockGainsTax: Math.max(0, numFromField('stock-gains-tax')),
+            stockBuySellFee: Math.max(0, numFromField('stock-buy-sell-fee')),
+            currencyConversionFee: Math.max(0, numFromField('currency-conversion-fee')),
+            stockVolatility: Math.max(0, numFromField('stock-volatility')),
+            reVolatility: Math.max(0, numFromField('re-volatility')),
         };
     }
 
@@ -73,6 +96,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const inputId = toggle.id.replace('auto-', '');
             const input = document.getElementById(inputId);
             if(input) input.disabled = true;
+        });
+    }
+
+    // --- Thousands separators for money inputs ---
+    function formatMoneyField(el, preserveCaret) {
+        const digits = el.value.replace(/[^\d]/g, '');
+        const caretFromEnd = preserveCaret ? el.value.length - el.selectionStart : 0;
+        el.value = digits ? parseInt(digits, 10).toLocaleString('en-US') : '';
+        if (preserveCaret) {
+            const pos = Math.max(0, el.value.length - caretFromEnd);
+            try { el.setSelectionRange(pos, pos); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function setupMoneyInputs() {
+        document.querySelectorAll('.money-input').forEach(el => {
+            formatMoneyField(el, false); // format initial / restored value
+            el.addEventListener('input', () => {
+                formatMoneyField(el, true);
+                scenarioSelect.value = 'custom';
+            });
         });
     }
 
@@ -121,6 +165,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         winnerDiffEl.textContent = `פער של ${formatCurrency(summary.difference)}`;
+
+        // Balance bar — proportional split between the two outcomes (the signature scale)
+        const reVal = Math.max(0, summary.finalReNetWorth);
+        const stockVal = Math.max(0, summary.finalStockNetWorth);
+        const total = reVal + stockVal;
+        const rePct = total > 0 ? (reVal / total) * 100 : 50;
+        const balanceRe = document.getElementById('balance-re');
+        const balanceStock = document.getElementById('balance-stock');
+        if (balanceRe && balanceStock) {
+            balanceRe.style.flexBasis = `${rePct}%`;
+            balanceStock.style.flexBasis = `${100 - rePct}%`;
+        }
 
         // We can add the win rate to the subtitle of the charts or somewhere in UI if wanted
         // console.log(`MC Win rate: RE ${mcResults.winRate.re}%, Stock ${mcResults.winRate.stock}%`);
@@ -186,6 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isAuto) {
                     scenarioSelect.value = 'custom';
                 }
+
+                // Recompute so the result reflects the toggle change (consistent with scenario change)
+                runFullSimulation();
             });
         });
 
@@ -208,12 +267,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isDark) {
                 document.body.classList.remove('dark-mode');
                 document.body.classList.add('light-mode');
-                themeToggle.textContent = '☀️';
                 localStorage.setItem('investvision_theme', 'light');
             } else {
                 document.body.classList.remove('light-mode');
                 document.body.classList.add('dark-mode');
-                themeToggle.textContent = '🌙';
                 localStorage.setItem('investvision_theme', 'dark');
             }
             chartManager.updateTheme();
@@ -234,7 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedTheme === 'light') {
             document.body.classList.remove('dark-mode');
             document.body.classList.add('light-mode');
-            themeToggle.textContent = '☀️';
         }
     }
 

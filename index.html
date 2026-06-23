@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InvestVision - השוואת נדל"ן לשוק ההון</title>
-    
-    <!-- Fonts -->
+    <title>InvestVision — השוואת נדל"ן לשוק ההון</title>
+
+    <!-- Fonts: Frank Ruhl Libre (display, Hebrew serif) · Heebo (body) · IBM Plex Mono (figures) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
     <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css">
-    
+
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -20,28 +20,40 @@
 <body class="dark-mode">
     <div class="app-container">
         <!-- Header -->
-        <header class="glass-header">
+        <header class="app-header">
             <div class="logo">
-                <span class="icon">📈</span>
-                <h1>InvestVision</h1>
+                <span class="logo__mark" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 24 L12 17 L18 20 L28 9" stroke="var(--re)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 27 L12 23 L18 25 L28 16" stroke="var(--stock)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+                    </svg>
+                </span>
+                <div class="logo__text">
+                    <h1>InvestVision</h1>
+                    <span class="logo__tagline">נדל"ן מול שוק ההון</span>
+                </div>
             </div>
             <div class="header-controls">
-                <button id="export-pdf-btn" class="btn secondary">
-                    <span class="icon">📄</span> ייצוא PDF
+                <button id="export-pdf-btn" class="btn btn--ghost">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4M8 13h8M8 17h5M9 3h6l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11v-2a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span>ייצוא PDF</span>
                 </button>
-                <button id="export-csv-btn" class="btn secondary">
-                    <span class="icon">📊</span> ייצוא CSV
+                <button id="export-csv-btn" class="btn btn--ghost">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 9.5h17M9 9.5v10M15 4.5v15" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <span>ייצוא CSV</span>
                 </button>
                 <button id="theme-toggle" class="icon-btn" aria-label="החלף מצב תצוגה">
-                    🌙
+                    <svg class="ico ico--moon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                    <svg class="ico ico--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 </button>
             </div>
         </header>
 
         <main class="main-content">
             <!-- Sidebar / Parameters -->
-            <aside class="parameters-panel glass-panel">
+            <aside class="parameters-panel surface">
                 <div class="panel-header">
+                    <span class="eyebrow">הנחות העבודה</span>
                     <h2>הגדרות ופרמטרים</h2>
                     <div class="scenario-selector">
                         <select id="scenario-select" class="custom-select">
@@ -64,7 +76,7 @@
                     <div id="general-params" class="param-group active">
                         <div class="param-row">
                             <label for="initial-capital">הון עצמי התחלתי (₪)</label>
-                            <input type="number" id="initial-capital" value="1000000" step="50000">
+                            <input type="text" inputmode="numeric" id="initial-capital" class="money-input" value="1000000">
                         </div>
                         <div class="param-row">
                             <label for="investment-years">תקופת השקעה (שנים)</label>
@@ -88,11 +100,11 @@
                     <div id="real-estate-params" class="param-group">
                         <div class="param-row">
                             <label for="property-value">שווי הנכס לרכישה (₪)</label>
-                            <input type="number" id="property-value" value="2500000" step="50000">
+                            <input type="text" inputmode="numeric" id="property-value" class="money-input" value="2500000">
                         </div>
                         <div class="param-row">
                             <label for="monthly-rent">שכירות חודשית צפויה (₪)</label>
-                            <input type="number" id="monthly-rent" value="6500" step="100">
+                            <input type="text" inputmode="numeric" id="monthly-rent" class="money-input" value="6500">
                         </div>
                         <div class="param-row has-auto-toggle">
                             <div class="label-wrapper">
@@ -106,6 +118,11 @@
                             <input type="number" id="mortgage-rate" value="5" step="0.1" disabled>
                             <small class="source-note">מקור: ממוצע בנק ישראל 2024</small>
                         </div>
+                        <div class="param-row">
+                            <label for="mortgage-years">תקופת המשכנתא (שנים)</label>
+                            <input type="number" id="mortgage-years" value="30" min="1" max="40">
+                            <small class="source-note">נפרד מתקופת ההשקעה</small>
+                        </div>
                         <div class="param-row has-auto-toggle">
                             <div class="label-wrapper">
                                 <label for="property-appreciation">עליית ערך שנתית (%)</label>
@@ -118,11 +135,11 @@
                             <input type="number" id="property-appreciation" value="5" step="0.1" disabled>
                             <small class="source-note">מקור: למ"ס, ממוצע רב-שנתי מתון</small>
                         </div>
-                        
+
                         <!-- Advanced RE Params (Accordion) -->
                         <details class="advanced-params">
                             <summary>הוצאות ועמלות נדל"ן (מתקדם)</summary>
-                            
+
                             <div class="param-row has-auto-toggle">
                                 <div class="label-wrapper">
                                     <label for="broker-fee">עמלת תיווך (%)</label>
@@ -131,7 +148,7 @@
                                 <input type="number" id="broker-fee" value="2" step="0.1" disabled>
                                 <small class="source-note">לא כולל מע"מ</small>
                             </div>
-                            
+
                             <div class="param-row has-auto-toggle">
                                 <div class="label-wrapper">
                                     <label for="lawyer-fee">שכר טרחת עו"ד (%)</label>
@@ -145,10 +162,55 @@
                                 <label for="maintenance-yearly">תחזוקה שנתית (% משווי הנכס)</label>
                                 <input type="number" id="maintenance-yearly" value="0.5" step="0.1">
                             </div>
-                            
+
                             <div class="param-row">
                                 <label for="vacancy-months">חודשי אי-תפוסה בשנה</label>
                                 <input type="number" id="vacancy-months" value="1" step="0.1" max="12">
+                            </div>
+
+                            <div class="param-row">
+                                <label for="rental-tax">מס על הכנסות שכירות (%)</label>
+                                <input type="number" id="rental-tax" value="10" step="0.5" min="0">
+                                <small class="source-note">מסלול 10% על שכ"ד ברוטו</small>
+                            </div>
+
+                            <div class="param-row">
+                                <label for="sale-cost-pct">עלויות מכירת הנכס (%)</label>
+                                <input type="number" id="sale-cost-pct" value="2" step="0.1" min="0">
+                                <small class="source-note">תיווך ועו"ד במכירה</small>
+                            </div>
+
+                            <div class="param-row">
+                                <label for="appraiser-fee">שמאי (₪)</label>
+                                <input type="number" id="appraiser-fee" value="3500" step="100" min="0">
+                                <small class="source-note">לפני מע"מ</small>
+                            </div>
+
+                            <div class="param-row">
+                                <label for="advisor-fee">יועץ משכנתא (₪)</label>
+                                <input type="number" id="advisor-fee" value="8000" step="500" min="0">
+                                <small class="source-note">לפני מע"מ</small>
+                            </div>
+
+                            <div class="param-row">
+                                <label for="insurance-yearly">ביטוח שנתי (₪)</label>
+                                <input type="number" id="insurance-yearly" value="3000" step="100" min="0">
+                            </div>
+
+                            <div class="param-row">
+                                <label for="vat">מע"מ (%)</label>
+                                <input type="number" id="vat" value="18" step="1" min="0">
+                            </div>
+
+                            <div class="param-row">
+                                <label for="re-gains-tax">מס שבח (%)</label>
+                                <input type="number" id="re-gains-tax" value="25" step="1" min="0">
+                            </div>
+
+                            <div class="param-row">
+                                <label for="re-volatility">תנודתיות נדל"ן בסימולציה (%)</label>
+                                <input type="number" id="re-volatility" value="5" step="0.5" min="0">
+                                <small class="source-note">סטיית תקן שנתית ל-Monte Carlo</small>
                             </div>
                         </details>
                     </div>
@@ -167,7 +229,7 @@
                             <input type="number" id="stock-return" value="9.5" step="0.1" disabled>
                             <small class="source-note">מקור: S&P 500 נומינלי היסטורי (כולל דיבידנדים)</small>
                         </div>
-                        
+
                         <!-- Advanced Stock Params (Accordion) -->
                         <details class="advanced-params">
                             <summary>הוצאות ומיסוי שוק ההון (מתקדם)</summary>
@@ -179,52 +241,89 @@
                                 <input type="number" id="management-fee" value="0.1" step="0.01" disabled>
                                 <small class="source-note">הערכה ל-ETF מחקה מדד</small>
                             </div>
-                            
+
                             <div class="param-row">
-                                <label for="capital-gains-tax">מס רווחי הון (%)</label>
-                                <input type="number" id="capital-gains-tax" value="25" step="1" disabled>
+                                <label for="stock-gains-tax">מס רווחי הון (%)</label>
+                                <input type="number" id="stock-gains-tax" value="25" step="1" min="0">
                                 <small class="source-note">בישראל: 25% על הרווח הריאלי</small>
+                            </div>
+
+                            <div class="param-row">
+                                <label for="stock-buy-sell-fee">עמלת קנייה/מכירה (%)</label>
+                                <input type="number" id="stock-buy-sell-fee" value="0.09" step="0.01" min="0">
+                            </div>
+
+                            <div class="param-row">
+                                <label for="currency-conversion-fee">עמלת המרת מט"ח (%)</label>
+                                <input type="number" id="currency-conversion-fee" value="0.5" step="0.1" min="0">
+                            </div>
+
+                            <div class="param-row">
+                                <label for="stock-volatility">תנודתיות שוק ההון בסימולציה (%)</label>
+                                <input type="number" id="stock-volatility" value="15" step="0.5" min="0">
+                                <small class="source-note">סטיית תקן שנתית ל-Monte Carlo</small>
                             </div>
                         </details>
                     </div>
 
-                    <button id="calculate-btn" class="btn primary full-width">חשב והשווה</button>
+                    <button id="calculate-btn" class="btn btn--primary full-width">חשב והשווה</button>
                 </div>
             </aside>
 
             <!-- Results Dashboard -->
             <section class="results-dashboard">
-                <div class="summary-cards">
-                    <div class="card glass-card">
-                        <div class="card-title">הון סופי - נדל"ן (נטו)</div>
-                        <div class="card-value real-estate-color" id="final-re-net-worth">₪0</div>
-                        <div class="card-subtitle" id="re-roi">תשואה כוללת: 0%</div>
+                <!-- Verdict: the head-to-head outcome -->
+                <header class="verdict surface">
+                    <div class="verdict__intro">
+                        <span class="eyebrow">תוצאת הסימולציה</span>
+                        <p class="verdict__statement">המסלול המוביל: <span id="winner-text">—</span></p>
                     </div>
-                    <div class="card glass-card">
-                        <div class="card-title">הון סופי - שוק ההון (נטו)</div>
-                        <div class="card-value stock-color" id="final-stock-net-worth">₪0</div>
-                        <div class="card-subtitle" id="stock-roi">תשואה כוללת: 0%</div>
+
+                    <div class="matchup">
+                        <div class="path path--re">
+                            <span class="path__label">נדל"ן <span class="path__dot" style="--c:var(--re)"></span></span>
+                            <span class="path__value mono real-estate-color" id="final-re-net-worth">₪0</span>
+                            <span class="path__roi" id="re-roi">תשואה כוללת: 0%</span>
+                        </div>
+                        <div class="matchup__vs">מול</div>
+                        <div class="path path--stock">
+                            <span class="path__label">שוק ההון <span class="path__dot" style="--c:var(--stock)"></span></span>
+                            <span class="path__value mono stock-color" id="final-stock-net-worth">₪0</span>
+                            <span class="path__roi" id="stock-roi">תשואה כוללת: 0%</span>
+                        </div>
                     </div>
-                    <div class="card glass-card highlight">
-                        <div class="card-title">המנצח בסימולציה</div>
-                        <div class="card-value" id="winner-text">-</div>
-                        <div class="card-subtitle" id="winner-diff">פער של ₪0</div>
+
+                    <div class="balance">
+                        <div class="balance__bar" role="img" aria-label="חלוקת השווי הסופי בין שני המסלולים">
+                            <div class="balance__re" id="balance-re" style="flex-basis:50%"></div>
+                            <div class="balance__stock" id="balance-stock" style="flex-basis:50%"></div>
+                        </div>
+                        <div class="balance__diff" id="winner-diff">פער של ₪0</div>
                     </div>
-                </div>
+                </header>
 
                 <div class="charts-container">
-                    <div class="chart-wrapper glass-card main-chart">
-                        <h3>התפתחות שווי נקי (Net Worth) על ציר הזמן</h3>
-                        <canvas id="netWorthChart"></canvas>
+                    <div class="chart-wrapper surface main-chart">
+                        <div class="chart-head">
+                            <span class="eyebrow">ציר הזמן</span>
+                            <h3>התפתחות שווי נקי (Net Worth)</h3>
+                        </div>
+                        <div class="chart-canvas"><canvas id="netWorthChart"></canvas></div>
                     </div>
                     <div class="chart-grid">
-                        <div class="chart-wrapper glass-card">
-                            <h3>סימולציית סיכונים (Monte Carlo)</h3>
-                            <canvas id="monteCarloChart"></canvas>
+                        <div class="chart-wrapper surface">
+                            <div class="chart-head">
+                                <span class="eyebrow">סיכון · Monte Carlo</span>
+                                <h3>טווח התרחישים האפשריים</h3>
+                            </div>
+                            <div class="chart-canvas"><canvas id="monteCarloChart"></canvas></div>
                         </div>
-                        <div class="chart-wrapper glass-card">
-                            <h3>השוואת מיסוי ועמלות</h3>
-                            <canvas id="feesChart"></canvas>
+                        <div class="chart-wrapper surface">
+                            <div class="chart-head">
+                                <span class="eyebrow">עלויות</span>
+                                <h3>השוואת מיסוי ועמלות</h3>
+                            </div>
+                            <div class="chart-canvas"><canvas id="feesChart"></canvas></div>
                         </div>
                     </div>
                 </div>

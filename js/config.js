@@ -39,7 +39,7 @@ const CONFIG = {
         RENOVATION_COST_PER_SQM: 1500, // ₪
         AVG_SQM: 100, // Assuming 100 sqm for renovation calc if needed
         INSURANCE_YEARLY: 3000, // ₪
-        VAT: 0.17, // 17% VAT in Israel
+        VAT: 0.18, // 18% VAT in Israel (since Jan 2025) — used only as a fallback default
         
         // Purchase Tax Brackets (Mas Rechisha) - Second Home (Investor) 2024
         PURCHASE_TAX_BRACKETS_INVESTOR: [

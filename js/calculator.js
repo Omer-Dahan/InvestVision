@@ -43,13 +43,21 @@ class FinancialCalculator {
         const propertyValueInitial = this.params.propertyValue;
         const initialCapital = this.params.initialCapital;
         
+        // Editable assumptions (fall back to sensible defaults if not supplied)
+        const vat = (this.params.vat ?? 18) / 100;
+        const reGainsTax = (this.params.reGainsTax ?? 25) / 100;
+        const rentalTaxRate = (this.params.rentalTax ?? 0) / 100;
+        const saleCostRate = (this.params.saleCostPct ?? 0) / 100;
+        const insuranceYearly = this.params.insuranceYearly ?? CONFIG.REAL_ESTATE.INSURANCE_YEARLY;
+        const mortgageYears = this.params.mortgageYears || years;
+
         // Calculate Acquisition Costs
         const purchaseTax = this.calculatePurchaseTax(propertyValueInitial);
-        const brokerFee = propertyValueInitial * (this.params.brokerFee / 100) * (1 + CONFIG.REAL_ESTATE.VAT);
-        const lawyerFee = propertyValueInitial * (this.params.lawyerFee / 100) * (1 + CONFIG.REAL_ESTATE.VAT);
-        const appraiserFee = CONFIG.REAL_ESTATE.APPRAISER_FEE * (1 + CONFIG.REAL_ESTATE.VAT);
-        const advisorFee = CONFIG.REAL_ESTATE.MORTGAGE_ADVISOR_FEE * (1 + CONFIG.REAL_ESTATE.VAT);
-        
+        const brokerFee = propertyValueInitial * (this.params.brokerFee / 100) * (1 + vat);
+        const lawyerFee = propertyValueInitial * (this.params.lawyerFee / 100) * (1 + vat);
+        const appraiserFee = (this.params.appraiserFee ?? CONFIG.REAL_ESTATE.APPRAISER_FEE) * (1 + vat);
+        const advisorFee = (this.params.advisorFee ?? CONFIG.REAL_ESTATE.MORTGAGE_ADVISOR_FEE) * (1 + vat);
+
         const totalAcquisitionCosts = purchaseTax + brokerFee + lawyerFee + appraiserFee + advisorFee;
         
         // Mortgage Amount = Property Value - (Initial Capital - Acquisition Costs)
@@ -58,22 +66,24 @@ class FinancialCalculator {
         let leftoverCapital = 0;
 
         if (mortgagePrincipal < 0) {
-            // User has more than enough cash to buy without a mortgage
+            // User has more than enough cash to buy without a mortgage; the excess stays as idle cash.
             leftoverCapital = Math.abs(mortgagePrincipal);
             mortgagePrincipal = 0;
-        } else if (effectiveDownPayment <= 0) {
-            // Capital doesn't even cover the fees. Loan must cover property + missing fees.
-            mortgagePrincipal = propertyValueInitial + Math.abs(effectiveDownPayment);
         }
+        // Note: when capital doesn't even cover the fees, effectiveDownPayment is negative and
+        // mortgagePrincipal (= propertyValue - effectiveDownPayment) already includes that shortfall.
         
-        const pmt = this.calculateMortgagePayment(mortgagePrincipal, this.params.mortgageRate, years); // Assuming mortgage term = investment term
+        const pmt = this.calculateMortgagePayment(mortgagePrincipal, this.params.mortgageRate, mortgageYears);
 
         // --- Initial State: Stock Market ---
         // Assuming the same initial capital is invested in the stock market
         let stockPortfolioValue = initialCapital;
         
         // Deduct initial buy fee and conversion fee
-        const totalStockBuyFee = CONFIG.STOCK_MARKET.BUY_SELL_FEE + CONFIG.STOCK_MARKET.CURRENCY_CONVERSION_FEE;
+        const stockBuySellFee = (this.params.stockBuySellFee ?? CONFIG.STOCK_MARKET.BUY_SELL_FEE * 100) / 100;
+        const currencyConversionFee = (this.params.currencyConversionFee ?? CONFIG.STOCK_MARKET.CURRENCY_CONVERSION_FEE * 100) / 100;
+        const stockGainsTax = (this.params.stockGainsTax ?? 25) / 100;
+        const totalStockBuyFee = stockBuySellFee + currencyConversionFee;
         stockPortfolioValue -= stockPortfolioValue * totalStockBuyFee;
         const stockInitialBasis = stockPortfolioValue;
 
@@ -82,6 +92,8 @@ class FinancialCalculator {
         let currentMortgageBalance = mortgagePrincipal;
         
         let cumulativeReCashFlow = 0;
+        let cumulativeStockMgmtFees = 0;
+        let cumulativeRentalTax = 0;
         const inflationMultiplier = 1 + (this.params.inflationRate / 100);
 
         for (let year = 1; year <= years; year++) {
@@ -95,37 +107,46 @@ class FinancialCalculator {
             
             // Expenses
             const maintenanceCost = currentPropertyValue * (this.params.maintenanceYearly / 100);
-            const insuranceCost = CONFIG.REAL_ESTATE.INSURANCE_YEARLY * Math.pow(inflationMultiplier, year - 1);
-            const mortgageYearlyPayment = pmt * 12;
-            
-            // Calculate mortgage interest and principal for the year
-            let yearlyInterest = 0;
-            let yearlyPrincipal = 0;
+            const insuranceCost = insuranceYearly * Math.pow(inflationMultiplier, year - 1);
+            const rentalTaxCost = yearlyRentIncome * rentalTaxRate;
+            cumulativeRentalTax += rentalTaxCost;
+
+            // Calculate the actual mortgage payments for the year. Payments stop once the loan is
+            // paid off, so a mortgage term shorter than the investment horizon frees up cash flow afterwards.
+            let mortgageYearlyPayment = 0;
             if (currentMortgageBalance > 0) {
                 const monthlyRate = this.params.mortgageRate / 100 / 12;
-                for (let m = 0; m < 12; m++) {
+                for (let m = 0; m < 12 && currentMortgageBalance > 0; m++) {
                     const interest = currentMortgageBalance * monthlyRate;
-                    const principalPaid = pmt - interest;
-                    yearlyInterest += interest;
-                    yearlyPrincipal += principalPaid;
+                    let principalPaid = pmt - interest;
+                    let payment = pmt;
+                    if (principalPaid >= currentMortgageBalance) {
+                        // Final (partial) payment — don't overpay past the remaining balance
+                        principalPaid = currentMortgageBalance;
+                        payment = interest + principalPaid;
+                    }
                     currentMortgageBalance -= principalPaid;
+                    mortgageYearlyPayment += payment;
                 }
                 if (currentMortgageBalance < 0) currentMortgageBalance = 0;
             }
 
-            // Cash flow for the year (Rent - Expenses - Mortgage Payment)
-            const yearlyReCashFlow = yearlyRentIncome - maintenanceCost - insuranceCost - mortgageYearlyPayment;
-            cumulativeReCashFlow += yearlyReCashFlow; // Assuming cash flow is kept as cash (0% interest) or we can reinvest it. For simplicity, we just accumulate it.
+            // Cash flow for the year (Rent - Rental Tax - Expenses - Mortgage Payment)
+            const yearlyReCashFlow = yearlyRentIncome - rentalTaxCost - maintenanceCost - insuranceCost - mortgageYearlyPayment;
+            // Lifestyle comparison (RE believer vs. stock believer):
+            // - Negative cash flow is paid out of pocket — a real cost of holding the property, so it reduces net worth.
+            // - Positive cash flow is treated as consumed (quality of life), so it is NOT added to net worth.
+            cumulativeReCashFlow += Math.min(0, yearlyReCashFlow);
 
             // 2. Update Stock Market
-            // We assume the user invests the same initial capital.
-            // But what about the ongoing cash flow difference?
-            // To make a fair comparison, if RE has negative cash flow, the Stock investor could have invested that amount.
-            // If RE has positive cash flow, the RE investor gets that cash. 
-            // In a pure investment vs investment without DRIP from RE cash flow, we just let Stock compound.
-            
+            // The stock investor puts the same initial capital into the market and lets it compound.
+            // We intentionally do NOT cross-invest the RE cash-flow difference into stocks — we are
+            // comparing two distinct lifestyles, not the same cash stream routed two ways.
+
             stockPortfolioValue *= (1 + (this.params.stockReturn / 100));
-            stockPortfolioValue -= stockPortfolioValue * (this.params.managementFee / 100); // Apply management fee
+            const yearlyMgmtFee = stockPortfolioValue * (this.params.managementFee / 100);
+            cumulativeStockMgmtFees += yearlyMgmtFee;
+            stockPortfolioValue -= yearlyMgmtFee; // Apply management fee
 
             // 3. Save Yearly Data
             results.yearlyData.push({
@@ -147,34 +168,37 @@ class FinancialCalculator {
         const totalInflationMultiplier = Math.max(1, Math.pow(inflationMultiplier, years));
         
         // RE Capital Gains Tax (Mas Shevach)
+        const saleCosts = currentPropertyValue * saleCostRate; // selling fees (broker/lawyer), paid at sale
         const inflationAdjustedInitialProperty = propertyValueInitial * totalInflationMultiplier;
         let reRealProfit = currentPropertyValue - inflationAdjustedInitialProperty;
         const deductibleExpenses = totalAcquisitionCosts * totalInflationMultiplier;
         reRealProfit -= deductibleExpenses;
+        reRealProfit -= saleCosts; // selling costs are deductible from the taxable gain
 
-        const masShevach = reRealProfit > 0 ? reRealProfit * CONFIG.REAL_ESTATE.CAPITAL_GAINS_TAX : 0;
-        const finalReNetWorth = currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow + leftoverCapital - masShevach;
+        const masShevach = reRealProfit > 0 ? reRealProfit * reGainsTax : 0;
+        const finalReNetWorth = currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow + leftoverCapital - masShevach - saleCosts;
 
         // Stock Capital Gains Tax
-        const finalStockSellFee = stockPortfolioValue * CONFIG.STOCK_MARKET.BUY_SELL_FEE;
+        // Selling incurs a broker fee and a currency-conversion fee back to ILS
+        const finalStockSellFee = stockPortfolioValue * (stockBuySellFee + currencyConversionFee);
         const stockValueAfterFees = stockPortfolioValue - finalStockSellFee;
         const inflationAdjustedInitialStock = stockInitialBasis * totalInflationMultiplier;
-        
+
         const stockRealProfit = stockValueAfterFees - inflationAdjustedInitialStock;
-        const stockTax = stockRealProfit > 0 ? stockRealProfit * CONFIG.STOCK_MARKET.CAPITAL_GAINS_TAX : 0;
-        
+        const stockTax = stockRealProfit > 0 ? stockRealProfit * stockGainsTax : 0;
+
         const finalStockNetWorth = stockValueAfterFees - stockTax;
 
         // --- Summarize Results ---
         results.summary = {
             finalReNetWorth,
             finalStockNetWorth,
-            totalReTaxes: purchaseTax + masShevach,
+            totalReTaxes: purchaseTax + masShevach + cumulativeRentalTax,
             totalStockTaxes: stockTax,
-            totalReFees: totalAcquisitionCosts - purchaseTax, // only fees
-            totalStockFees: (initialCapital * totalStockBuyFee) + finalStockSellFee + (stockPortfolioValue * this.params.managementFee / 100 * years), // rough estimate of total management fees
-            reROI: ((finalReNetWorth - initialCapital) / initialCapital) * 100,
-            stockROI: ((finalStockNetWorth - initialCapital) / initialCapital) * 100,
+            totalReFees: (totalAcquisitionCosts - purchaseTax) + saleCosts, // acquisition + selling fees
+            totalStockFees: (initialCapital * totalStockBuyFee) + finalStockSellFee + cumulativeStockMgmtFees,
+            reROI: initialCapital > 0 ? ((finalReNetWorth - initialCapital) / initialCapital) * 100 : 0,
+            stockROI: initialCapital > 0 ? ((finalStockNetWorth - initialCapital) / initialCapital) * 100 : 0,
             winner: finalReNetWorth > finalStockNetWorth ? 'real-estate' : 'stock',
             difference: Math.abs(finalReNetWorth - finalStockNetWorth)
         };
