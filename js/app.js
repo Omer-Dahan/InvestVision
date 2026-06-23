@@ -160,8 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (input) {
                     input.disabled = isAuto;
                     if (isAuto) {
-                        // Re-apply base scenario value when turned auto
-                        const scenario = CONFIG.SCENARIOS['base'];
+                        // Re-apply active scenario value when turned auto (fallback to base)
+                        const scenarioKey = scenarioSelect.value === 'custom' ? 'base' : scenarioSelect.value;
+                        const scenario = CONFIG.SCENARIOS[scenarioKey];
                         
                         // Map input id to scenario key
                         const keyMap = {

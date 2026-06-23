@@ -42,13 +42,15 @@ class MonteCarloSimulation {
             const stockInitialBasis = stockPortfolioValue;
 
             let currentPropertyValue = iterParams.propertyValue;
-            let currentMortgageBalance = iterParams.propertyValue - (iterParams.initialCapital - this.calculateAcquisitionCosts(iterParams));
+            const effectiveDownPayment = iterParams.initialCapital - this.calculateAcquisitionCosts(iterParams);
+            let currentMortgageBalance = iterParams.propertyValue - effectiveDownPayment;
+            let leftoverCapital = 0;
             
-            // If capital wasn't enough to cover downpayment properly
-            if (currentMortgageBalance > iterParams.propertyValue) {
-                 currentMortgageBalance = iterParams.propertyValue;
-            } else if (currentMortgageBalance < 0) {
+            if (currentMortgageBalance < 0) {
+                 leftoverCapital = Math.abs(currentMortgageBalance);
                  currentMortgageBalance = 0;
+            } else if (effectiveDownPayment <= 0) {
+                 currentMortgageBalance = iterParams.propertyValue + Math.abs(effectiveDownPayment);
             }
 
             const pmt = this.calculateMortgagePayment(currentMortgageBalance, iterParams.mortgageRate, years);
@@ -87,22 +89,22 @@ class MonteCarloSimulation {
             }
 
             // Final Taxes
-            const totalInflationMultiplier = Math.pow(inflationMultiplier, years);
+            const totalInflationMultiplier = Math.max(1, Math.pow(inflationMultiplier, years));
             
             // RE Tax
             const inflationAdjustedInitialProperty = iterParams.propertyValue * totalInflationMultiplier;
             let reRealProfit = currentPropertyValue - inflationAdjustedInitialProperty;
-            // Simplified deduction
             reRealProfit -= (this.calculateAcquisitionCosts(iterParams) * totalInflationMultiplier);
             const masShevach = reRealProfit > 0 ? reRealProfit * CONFIG.REAL_ESTATE.CAPITAL_GAINS_TAX : 0;
-            const finalReNetWorth = currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow - masShevach;
+            const finalReNetWorth = currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow + leftoverCapital - masShevach;
 
             // Stock Tax
-            const inflationAdjustedInitialStock = stockInitialBasis * totalInflationMultiplier;
-            const stockRealProfit = stockPortfolioValue - inflationAdjustedInitialStock;
-            const stockTax = stockRealProfit > 0 ? stockRealProfit * CONFIG.STOCK_MARKET.CAPITAL_GAINS_TAX : 0;
             const finalStockSellFee = stockPortfolioValue * CONFIG.STOCK_MARKET.BUY_SELL_FEE;
-            const finalStockNetWorth = stockPortfolioValue - stockTax - finalStockSellFee;
+            const stockValueAfterFees = stockPortfolioValue - finalStockSellFee;
+            const inflationAdjustedInitialStock = stockInitialBasis * totalInflationMultiplier;
+            const stockRealProfit = stockValueAfterFees - inflationAdjustedInitialStock;
+            const stockTax = stockRealProfit > 0 ? stockRealProfit * CONFIG.STOCK_MARKET.CAPITAL_GAINS_TAX : 0;
+            const finalStockNetWorth = stockValueAfterFees - stockTax;
 
             results.reFinalValues.push(finalReNetWorth);
             results.stockFinalValues.push(finalStockNetWorth);

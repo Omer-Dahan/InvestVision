@@ -53,23 +53,20 @@ class FinancialCalculator {
         const totalAcquisitionCosts = purchaseTax + brokerFee + lawyerFee + appraiserFee + advisorFee;
         
         // Mortgage Amount = Property Value - (Initial Capital - Acquisition Costs)
-        // Ensure user has enough capital for acquisition costs!
         const effectiveDownPayment = initialCapital - totalAcquisitionCosts;
-        
         let mortgagePrincipal = propertyValueInitial - effectiveDownPayment;
-        let pmt = this.calculateMortgagePayment(mortgagePrincipal, this.params.mortgageRate, years); // Assuming mortgage term = investment term
-        
-        if (effectiveDownPayment <= 0 || mortgagePrincipal < 0) {
-            // Handle edge case where capital is not enough even for taxes, or covers everything.
-            if (effectiveDownPayment <= 0) {
-                console.warn("Not enough initial capital to cover acquisition costs.");
-                mortgagePrincipal = propertyValueInitial;
-                pmt = this.calculateMortgagePayment(mortgagePrincipal, this.params.mortgageRate, years);
-            } else {
-                mortgagePrincipal = 0;
-                pmt = 0;
-            }
+        let leftoverCapital = 0;
+
+        if (mortgagePrincipal < 0) {
+            // User has more than enough cash to buy without a mortgage
+            leftoverCapital = Math.abs(mortgagePrincipal);
+            mortgagePrincipal = 0;
+        } else if (effectiveDownPayment <= 0) {
+            // Capital doesn't even cover the fees. Loan must cover property + missing fees.
+            mortgagePrincipal = propertyValueInitial + Math.abs(effectiveDownPayment);
         }
+        
+        const pmt = this.calculateMortgagePayment(mortgagePrincipal, this.params.mortgageRate, years); // Assuming mortgage term = investment term
 
         // --- Initial State: Stock Market ---
         // Assuming the same initial capital is invested in the stock market
@@ -135,46 +132,38 @@ class FinancialCalculator {
                 year,
                 propertyValue: currentPropertyValue,
                 mortgageBalance: currentMortgageBalance,
-                reNetWorth: currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow,
+                reNetWorth: currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow + leftoverCapital,
                 stockPortfolioValue: stockPortfolioValue,
                 cumulativeReCashFlow: cumulativeReCashFlow,
                 yearlyRentIncome: yearlyRentIncome,
-                inflationAdjustedReNetWorth: (currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow) / Math.pow(inflationMultiplier, year),
+                inflationAdjustedReNetWorth: (currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow + leftoverCapital) / Math.pow(inflationMultiplier, year),
                 inflationAdjustedStockValue: stockPortfolioValue / Math.pow(inflationMultiplier, year)
             });
         }
 
         // --- End of Simulation: Tax Calculations ---
         
+        // Deflation indexation floor is 1.0 (cannot increase profit due to negative inflation)
+        const totalInflationMultiplier = Math.max(1, Math.pow(inflationMultiplier, years));
+        
         // RE Capital Gains Tax (Mas Shevach)
-        // Real profit = Current Value - (Initial Value * Inflation)
-        const totalInflationMultiplier = Math.pow(inflationMultiplier, years);
         const inflationAdjustedInitialProperty = propertyValueInitial * totalInflationMultiplier;
         let reRealProfit = currentPropertyValue - inflationAdjustedInitialProperty;
-        // Deduct expenses from profit (Broker, Lawyer, etc. adjusted for inflation)
         const deductibleExpenses = totalAcquisitionCosts * totalInflationMultiplier;
         reRealProfit -= deductibleExpenses;
 
-        let masShevach = 0;
-        if (reRealProfit > 0) {
-            masShevach = reRealProfit * CONFIG.REAL_ESTATE.CAPITAL_GAINS_TAX;
-        }
-
-        // Final RE Net Worth after selling
-        const finalReNetWorth = currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow - masShevach;
+        const masShevach = reRealProfit > 0 ? reRealProfit * CONFIG.REAL_ESTATE.CAPITAL_GAINS_TAX : 0;
+        const finalReNetWorth = currentPropertyValue - currentMortgageBalance + cumulativeReCashFlow + leftoverCapital - masShevach;
 
         // Stock Capital Gains Tax
-        const inflationAdjustedInitialStock = stockInitialBasis * totalInflationMultiplier;
-        let stockRealProfit = stockPortfolioValue - inflationAdjustedInitialStock;
-        let stockTax = 0;
-        if (stockRealProfit > 0) {
-            stockTax = stockRealProfit * CONFIG.STOCK_MARKET.CAPITAL_GAINS_TAX;
-        }
-        
-        // Selling fee
         const finalStockSellFee = stockPortfolioValue * CONFIG.STOCK_MARKET.BUY_SELL_FEE;
+        const stockValueAfterFees = stockPortfolioValue - finalStockSellFee;
+        const inflationAdjustedInitialStock = stockInitialBasis * totalInflationMultiplier;
         
-        const finalStockNetWorth = stockPortfolioValue - stockTax - finalStockSellFee;
+        const stockRealProfit = stockValueAfterFees - inflationAdjustedInitialStock;
+        const stockTax = stockRealProfit > 0 ? stockRealProfit * CONFIG.STOCK_MARKET.CAPITAL_GAINS_TAX : 0;
+        
+        const finalStockNetWorth = stockValueAfterFees - stockTax;
 
         // --- Summarize Results ---
         results.summary = {
