@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvestVision - השוואת נדל"ן לשוק ההון</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body class="dark-mode">
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-header">
+            <div class="logo">
+                <span class="icon">📈</span>
+                <h1>InvestVision</h1>
+            </div>
+            <div class="header-controls">
+                <button id="export-pdf-btn" class="btn secondary">
+                    <span class="icon">📄</span> ייצוא PDF
+                </button>
+                <button id="export-csv-btn" class="btn secondary">
+                    <span class="icon">📊</span> ייצוא CSV
+                </button>
+                <button id="theme-toggle" class="icon-btn" aria-label="החלף מצב תצוגה">
+                    🌙
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Sidebar / Parameters -->
+            <aside class="parameters-panel glass-panel">
+                <div class="panel-header">
+                    <h2>הגדרות ופרמטרים</h2>
+                    <div class="scenario-selector">
+                        <select id="scenario-select" class="custom-select">
+                            <option value="base">תרחיש סביר (Base Case)</option>
+                            <option value="optimistic">אופטימי לנדל"ן</option>
+                            <option value="pessimistic">פסימי לנדל"ן</option>
+                            <option value="custom">התאמה אישית</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-target="general-params">כללי</button>
+                    <button class="tab-btn" data-target="real-estate-params">נדל"ן</button>
+                    <button class="tab-btn" data-target="stock-params">שוק ההון</button>
+                </div>
+
+                <div class="tab-content scrollable">
+                    <!-- General Parameters -->
+                    <div id="general-params" class="param-group active">
+                        <div class="param-row">
+                            <label for="initial-capital">הון עצמי התחלתי (₪)</label>
+                            <input type="number" id="initial-capital" value="1000000" step="50000">
+                        </div>
+                        <div class="param-row">
+                            <label for="investment-years">תקופת השקעה (שנים)</label>
+                            <input type="number" id="investment-years" value="30" min="5" max="50">
+                        </div>
+                        <div class="param-row has-auto-toggle">
+                            <div class="label-wrapper">
+                                <label for="inflation-rate">אינפלציה שנתית (%)</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="auto-inflation" checked>
+                                    <span class="slider"></span>
+                                    <span class="toggle-label">Auto</span>
+                                </label>
+                            </div>
+                            <input type="number" id="inflation-rate" value="1.5" step="0.1" disabled>
+                            <small class="source-note">מקור: ממוצע בנק ישראל (עשור אחרון)</small>
+                        </div>
+                    </div>
+
+                    <!-- Real Estate Parameters -->
+                    <div id="real-estate-params" class="param-group">
+                        <div class="param-row">
+                            <label for="property-value">שווי הנכס לרכישה (₪)</label>
+                            <input type="number" id="property-value" value="2500000" step="50000">
+                        </div>
+                        <div class="param-row">
+                            <label for="monthly-rent">שכירות חודשית צפויה (₪)</label>
+                            <input type="number" id="monthly-rent" value="6500" step="100">
+                        </div>
+                        <div class="param-row has-auto-toggle">
+                            <div class="label-wrapper">
+                                <label for="mortgage-rate">ריבית משכנתא שנתית (%)</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="auto-mortgage-rate" checked>
+                                    <span class="slider"></span>
+                                    <span class="toggle-label">Auto</span>
+                                </label>
+                            </div>
+                            <input type="number" id="mortgage-rate" value="5" step="0.1" disabled>
+                            <small class="source-note">מקור: ממוצע בנק ישראל 2024</small>
+                        </div>
+                        <div class="param-row has-auto-toggle">
+                            <div class="label-wrapper">
+                                <label for="property-appreciation">עליית ערך שנתית (%)</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="auto-property-appreciation" checked>
+                                    <span class="slider"></span>
+                                    <span class="toggle-label">Auto</span>
+                                </label>
+                            </div>
+                            <input type="number" id="property-appreciation" value="5" step="0.1" disabled>
+                            <small class="source-note">מקור: למ"ס, ממוצע רב-שנתי מתון</small>
+                        </div>
+                        
+                        <!-- Advanced RE Params (Accordion) -->
+                        <details class="advanced-params">
+                            <summary>הוצאות ועמלות נדל"ן (מתקדם)</summary>
+                            
+                            <div class="param-row has-auto-toggle">
+                                <div class="label-wrapper">
+                                    <label for="broker-fee">עמלת תיווך (%)</label>
+                                    <label class="toggle"><input type="checkbox" id="auto-broker-fee" checked><span class="slider"></span></label>
+                                </div>
+                                <input type="number" id="broker-fee" value="2" step="0.1" disabled>
+                                <small class="source-note">לא כולל מע"מ</small>
+                            </div>
+                            
+                            <div class="param-row has-auto-toggle">
+                                <div class="label-wrapper">
+                                    <label for="lawyer-fee">שכר טרחת עו"ד (%)</label>
+                                    <label class="toggle"><input type="checkbox" id="auto-lawyer-fee" checked><span class="slider"></span></label>
+                                </div>
+                                <input type="number" id="lawyer-fee" value="1" step="0.1" disabled>
+                                <small class="source-note">לא כולל מע"מ</small>
+                            </div>
+
+                            <div class="param-row">
+                                <label for="maintenance-yearly">תחזוקה שנתית (% משווי הנכס)</label>
+                                <input type="number" id="maintenance-yearly" value="0.5" step="0.1">
+                            </div>
+                            
+                            <div class="param-row">
+                                <label for="vacancy-months">חודשי אי-תפוסה בשנה</label>
+                                <input type="number" id="vacancy-months" value="1" step="0.1" max="12">
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- Stock Market Parameters -->
+                    <div id="stock-params" class="param-group">
+                        <div class="param-row has-auto-toggle">
+                            <div class="label-wrapper">
+                                <label for="stock-return">תשואה שנתית ממוצעת (%)</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="auto-stock-return" checked>
+                                    <span class="slider"></span>
+                                    <span class="toggle-label">Auto</span>
+                                </label>
+                            </div>
+                            <input type="number" id="stock-return" value="9.5" step="0.1" disabled>
+                            <small class="source-note">מקור: S&P 500 נומינלי היסטורי (כולל דיבידנדים)</small>
+                        </div>
+                        
+                        <!-- Advanced Stock Params (Accordion) -->
+                        <details class="advanced-params">
+                            <summary>הוצאות ומיסוי שוק ההון (מתקדם)</summary>
+                            <div class="param-row has-auto-toggle">
+                                <div class="label-wrapper">
+                                    <label for="management-fee">דמי ניהול שנתיים (%)</label>
+                                    <label class="toggle"><input type="checkbox" id="auto-management-fee" checked><span class="slider"></span></label>
+                                </div>
+                                <input type="number" id="management-fee" value="0.1" step="0.01" disabled>
+                                <small class="source-note">הערכה ל-ETF מחקה מדד</small>
+                            </div>
+                            
+                            <div class="param-row">
+                                <label for="capital-gains-tax">מס רווחי הון (%)</label>
+                                <input type="number" id="capital-gains-tax" value="25" step="1" disabled>
+                                <small class="source-note">בישראל: 25% על הרווח הריאלי</small>
+                            </div>
+                        </details>
+                    </div>
+
+                    <button id="calculate-btn" class="btn primary full-width">חשב והשווה</button>
+                </div>
+            </aside>
+
+            <!-- Results Dashboard -->
+            <section class="results-dashboard">
+                <div class="summary-cards">
+                    <div class="card glass-card">
+                        <div class="card-title">הון סופי - נדל"ן (נטו)</div>
+                        <div class="card-value real-estate-color" id="final-re-net-worth">₪0</div>
+                        <div class="card-subtitle" id="re-roi">תשואה כוללת: 0%</div>
+                    </div>
+                    <div class="card glass-card">
+                        <div class="card-title">הון סופי - שוק ההון (נטו)</div>
+                        <div class="card-value stock-color" id="final-stock-net-worth">₪0</div>
+                        <div class="card-subtitle" id="stock-roi">תשואה כוללת: 0%</div>
+                    </div>
+                    <div class="card glass-card highlight">
+                        <div class="card-title">המנצח בסימולציה</div>
+                        <div class="card-value" id="winner-text">-</div>
+                        <div class="card-subtitle" id="winner-diff">פער של ₪0</div>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper glass-card main-chart">
+                        <h3>התפתחות שווי נקי (Net Worth) על ציר הזמן</h3>
+                        <canvas id="netWorthChart"></canvas>
+                    </div>
+                    <div class="chart-grid">
+                        <div class="chart-wrapper glass-card">
+                            <h3>סימולציית סיכונים (Monte Carlo)</h3>
+                            <canvas id="monteCarloChart"></canvas>
+                        </div>
+                        <div class="chart-wrapper glass-card">
+                            <h3>השוואת מיסוי ועמלות</h3>
+                            <canvas id="feesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/monte-carlo.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
