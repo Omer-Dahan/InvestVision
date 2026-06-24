@@ -53,9 +53,9 @@ class ChartManager {
         updateChartTheme(this.feesChart);
     }
 
-    renderNetWorthChart(canvasId, yearlyData) {
+    renderNetWorthChart(canvasId, yearlyData, seriesLabels = { re: 'נדל"ן', stock: 'שוק ההון' }) {
         const ctx = document.getElementById(canvasId).getContext('2d');
-        
+
         if (this.netWorthChart) {
             this.netWorthChart.destroy();
         }
@@ -79,7 +79,7 @@ class ChartManager {
                 labels: labels,
                 datasets: [
                     {
-                        label: 'שווי נקי נדל"ן (₪)',
+                        label: seriesLabels.re,
                         data: reData,
                         borderColor: reColor,
                         backgroundColor: reFill,
@@ -91,7 +91,7 @@ class ChartManager {
                         pointHoverBackgroundColor: reColor
                     },
                     {
-                        label: 'שווי נקי שוק ההון (₪)',
+                        label: seriesLabels.stock,
                         data: stockData,
                         borderColor: stockColor,
                         backgroundColor: stockFill,
@@ -156,9 +156,9 @@ class ChartManager {
         });
     }
 
-    renderMonteCarloChart(canvasId, mcResults) {
+    renderMonteCarloChart(canvasId, mcResults, seriesLabels = { re: 'נדל"ן', stock: 'שוק ההון' }) {
         const ctx = document.getElementById(canvasId).getContext('2d');
-        
+
         if (this.monteCarloChart) {
             this.monteCarloChart.destroy();
         }
@@ -169,14 +169,14 @@ class ChartManager {
                 labels: ['5% הגרועים ביותר', 'חציון (50%)', '5% הטובים ביותר'],
                 datasets: [
                     {
-                        label: 'נדל"ן',
+                        label: seriesLabels.re,
                         data: [mcResults.percentiles.re.p5, mcResults.percentiles.re.p50, mcResults.percentiles.re.p95],
                         backgroundColor: this.getReColor(),
                         borderRadius: 5,
                         maxBarThickness: 46
                     },
                     {
-                        label: 'שוק ההון',
+                        label: seriesLabels.stock,
                         data: [mcResults.percentiles.stock.p5, mcResults.percentiles.stock.p50, mcResults.percentiles.stock.p95],
                         backgroundColor: this.getStockColor(),
                         borderRadius: 5,

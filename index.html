@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InvestVision — השוואת נדל"ן לשוק ההון</title>
+    <title>InvestVision · לקנות או לשכור ולהשקיע?</title>
 
     <!-- Fonts: Frank Ruhl Libre (display, Hebrew serif) · Heebo (body) · IBM Plex Mono (figures) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-    <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css">
 
-    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="dark-mode">
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
+<body class="dark-mode" data-mode="housing">
+
+    <!-- ============ VIEW: LANDING ============ -->
+    <section id="view-landing" class="view view--active landing">
+        <header class="landing__top">
             <div class="logo">
                 <span class="logo__mark" aria-hidden="true">
                     <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -33,15 +32,336 @@
                     <span class="logo__tagline">נדל"ן מול שוק ההון</span>
                 </div>
             </div>
+            <button id="theme-toggle-landing" class="icon-btn" aria-label="החלף מצב תצוגה">
+                <svg class="ico ico--moon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                <svg class="ico ico--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+        </header>
+
+        <div class="landing__hero">
+            <span class="eyebrow">החלטה פיננסית, בלי הניחוש</span>
+            <h2 class="landing__title">מה באמת עדיף: <em>נדל"ן</em> או <em>שוק ההון</em>?</h2>
+            <p class="landing__lead">
+                המחשבון מלווה אותך שלב-אחר-שלב, שואל כמה שאלות פשוטות (הכול ממולא מראש וניתן לשינוי),
+                ומראה מה צפוי לקרות להון שלך לאורך השנים, כולל מיסים, עמלות, עלויות נסתרות ותזרים חודשי.
+            </p>
+
+            <p class="landing__choose">בחר את השאלה שמעניינת אותך:</p>
+            <div class="mode-cards">
+                <button class="mode-card" data-mode="housing">
+                    <span class="mode-card__tag">מגורים</span>
+                    <h3>לקנות בית או לשכור ולהשקיע?</h3>
+                    <p>אתה גר בנכס. משווים קניית דירה עם משכנתא, מול שכירת דירה והשקעת ההון + ההפרש החודשי במדד.</p>
+                    <span class="mode-card__cta">התחל →</span>
+                </button>
+                <button class="mode-card" data-mode="investment">
+                    <span class="mode-card__tag">השקעה</span>
+                    <h3>נכס להשקעה או שוק ההון?</h3>
+                    <p>קונים דירה ומשכירים אותה (הכנסת שכירות), מול השקעת אותו ההון במדד מנייתי.</p>
+                    <span class="mode-card__cta">התחל →</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ VIEW: WIZARD ============ -->
+    <section id="view-wizard" class="view wizard">
+        <header class="wizard__head">
+            <button id="wizard-home" class="btn btn--ghost btn--sm" type="button">→ חזרה לבית</button>
+            <div class="wizard__progress">
+                <div class="wizard__progress-bar"><span id="wizard-progress-fill"></span></div>
+                <span id="wizard-progress-label" class="wizard__progress-label">שלב 1</span>
+            </div>
+            <span id="wizard-mode-badge" class="badge">מגורים</span>
+        </header>
+
+        <div class="wizard__body">
+            <!-- STEP: money -->
+            <div class="wizard-step surface" data-step="money">
+                <span class="eyebrow">נקודת הפתיחה</span>
+                <h2 class="step__title">כמה כסף יש לך להשקיע?</h2>
+                <p class="step__help">ההון העצמי הוא הסכום הפנוי שלך כיום. תקופת הבדיקה היא לכמה שנים קדימה נסתכל.</p>
+
+                <div class="param-row">
+                    <label for="initial-capital">הון עצמי התחלתי (₪)</label>
+                    <input type="text" inputmode="numeric" id="initial-capital" class="money-input" value="1000000">
+                </div>
+                <div class="param-row">
+                    <label for="investment-years">תקופת הבדיקה (שנים)</label>
+                    <input type="number" id="investment-years" value="30" min="1" max="50">
+                </div>
+            </div>
+
+            <!-- STEP: property -->
+            <div class="wizard-step surface" data-step="property">
+                <span class="eyebrow">הנכס</span>
+                <h2 class="step__title">איזה נכס אתה שוקל?</h2>
+                <p class="step__help">לפי המחיר וההון העצמי נחשב כמה משכנתא תצטרך ומה ההחזר החודשי.</p>
+
+                <div class="param-row">
+                    <label for="property-value">שווי הנכס (₪)</label>
+                    <input type="text" inputmode="numeric" id="property-value" class="money-input" value="2500000">
+                </div>
+                <div class="param-row">
+                    <label for="apartment-sqm">גודל הדירה (מ"ר)</label>
+                    <input type="number" id="apartment-sqm" value="100" min="20" max="1000">
+                    <small class="source-note">משמש לאומדן עלויות שיפוץ, מזגנים, חשמל וריהוט</small>
+                </div>
+                <div class="param-row">
+                    <label for="mortgage-rate">ריבית משכנתא שנתית (%)</label>
+                    <input type="number" id="mortgage-rate" value="5" step="0.1" min="0">
+                    <small class="source-note">מקור: ממוצע בנק ישראל</small>
+                </div>
+                <div class="param-row">
+                    <label for="mortgage-years">תקופת המשכנתא (שנים)</label>
+                    <input type="number" id="mortgage-years" value="30" min="1" max="40">
+                </div>
+                <div class="param-row">
+                    <label for="property-appreciation">עליית ערך שנתית צפויה (%)</label>
+                    <input type="number" id="property-appreciation" value="5" step="0.1">
+                    <small class="source-note">מקור: למ"ס, ממוצע רב-שנתי</small>
+                </div>
+                <div class="param-row">
+                    <label for="external-loan-rate">ריבית הלוואה חוץ-בנקאית / משפחה (%)</label>
+                    <input type="number" id="external-loan-rate" value="8" step="0.1" min="0">
+                    <small class="source-note">בשימוש רק אם ההון העצמי נמוך מדרישת הבנק (משפחה? אפס)</small>
+                </div>
+                <div class="param-row">
+                    <label for="external-loan-years">תקופת ההלוואה החוץ-בנקאית (שנים)</label>
+                    <input type="number" id="external-loan-years" value="7" min="1" max="30">
+                </div>
+
+                <div class="mini-readout" id="mortgage-readout" aria-live="polite">
+                    <div><span>הון עצמי נדרש (מינ׳)</span><strong id="ro-required" class="mono">…</strong></div>
+                    <div><span>משכנתא בנקאית</span><strong id="ro-loan" class="mono">…</strong></div>
+                    <div><span>השלמה חוץ-בנקאית</span><strong id="ro-gap" class="mono">…</strong></div>
+                    <div><span>החזר חודשי כולל</span><strong id="ro-monthly" class="mono">…</strong></div>
+                </div>
+                <p class="ltv-warning" id="ltv-warning" hidden></p>
+            </div>
+
+            <!-- STEP: setup (housing only) -->
+            <div class="wizard-step surface" data-step="setup" data-mode="housing">
+                <span class="eyebrow">עלויות כניסה חד-פעמיות</span>
+                <h2 class="step__title">כמה עולה להיכנס לדירה?</h2>
+                <p class="step__help">אומדן אוטומטי לפי גודל הדירה (מ"ר). אפשר לשנות כל סעיף.</p>
+
+                <div class="param-row">
+                    <label for="renovation-cost">שיפוץ (₪)</label>
+                    <input type="text" inputmode="numeric" id="renovation-cost" class="money-input" value="150000">
+                </div>
+                <div class="param-row">
+                    <label for="electrical-cost">חשמל ותשתיות (₪)</label>
+                    <input type="text" inputmode="numeric" id="electrical-cost" class="money-input" value="20000">
+                </div>
+                <div class="param-row">
+                    <label for="ac-cost">מיזוג אוויר (₪)</label>
+                    <input type="text" inputmode="numeric" id="ac-cost" class="money-input" value="18000">
+                    <small class="source-note" id="ac-note">~יחידה לכל 30 מ"ר</small>
+                </div>
+                <div class="param-row">
+                    <label for="furniture-cost">ריהוט (₪)</label>
+                    <input type="text" inputmode="numeric" id="furniture-cost" class="money-input" value="70000">
+                </div>
+                <div class="param-row">
+                    <label for="kitchen-cost">מטבח (₪)</label>
+                    <input type="text" inputmode="numeric" id="kitchen-cost" class="money-input" value="40000">
+                </div>
+
+                <div class="mini-readout">
+                    <div><span>סה"כ עלויות כניסה</span><strong id="ro-setup" class="mono">…</strong></div>
+                </div>
+            </div>
+
+            <!-- STEP: ongoing -->
+            <div class="wizard-step surface" data-step="ongoing">
+                <span class="eyebrow">הוצאות והכנסות שוטפות</span>
+                <h2 class="step__title">העלויות החודשיות</h2>
+
+                <!-- housing: rent you'd pay to live -->
+                <div class="param-row" data-mode="housing">
+                    <label for="living-rent">שכר דירה חודשי שהיית משלם (₪)</label>
+                    <input type="text" inputmode="numeric" id="living-rent" class="money-input" value="5500">
+                    <small class="source-note">הסכום שתשלם כשוכר במקום לקנות</small>
+                </div>
+
+                <!-- investment: rent income + vacancy + rental tax -->
+                <div class="param-row" data-mode="investment">
+                    <label for="monthly-rent">שכירות חודשית צפויה (הכנסה, ₪)</label>
+                    <input type="text" inputmode="numeric" id="monthly-rent" class="money-input" value="6500">
+                </div>
+                <div class="param-row" data-mode="investment">
+                    <label for="vacancy-months">חודשי אי-תפוסה בשנה</label>
+                    <input type="number" id="vacancy-months" value="1" step="0.1" min="0" max="12">
+                </div>
+                <div class="param-row" data-mode="investment">
+                    <label for="rental-tax">מס על הכנסות שכירות (%)</label>
+                    <input type="number" id="rental-tax" value="10" step="0.5" min="0">
+                    <small class="source-note">מסלול 10% על שכ"ד ברוטו</small>
+                </div>
+
+                <div class="param-row">
+                    <label for="maintenance-yearly">תחזוקה שנתית (% משווי הנכס)</label>
+                    <input type="number" id="maintenance-yearly" value="0.5" step="0.1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="insurance-yearly">ביטוח שנתי (₪)</label>
+                    <input type="number" id="insurance-yearly" value="3000" step="100" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="building-fees">דמי ועד בית חודשיים (₪)</label>
+                    <input type="number" id="building-fees" value="250" step="50" min="0">
+                    <small class="source-note">ניקיון, מעלית, חשמל לובי, שיפוצים משותפים</small>
+                </div>
+                <div class="param-row">
+                    <label for="periodic-reno-cost">שיפוץ תקופתי של הדירה (₪)</label>
+                    <input type="text" inputmode="numeric" id="periodic-reno-cost" class="money-input" value="50000">
+                </div>
+                <div class="param-row">
+                    <label for="periodic-reno-years">תדירות השיפוץ (כל כמה שנים)</label>
+                    <input type="number" id="periodic-reno-years" value="10" min="0" max="50">
+                    <small class="source-note">0 = ללא שיפוץ תקופתי</small>
+                </div>
+                <div class="param-row" data-mode="housing">
+                    <label for="arnona-yearly">ארנונה שנתית (₪)</label>
+                    <input type="number" id="arnona-yearly" value="5000" step="100" min="0">
+                    <small class="source-note">אומדן ~50 ₪/מ"ר לשנה</small>
+                </div>
+            </div>
+
+            <!-- STEP: markets -->
+            <div class="wizard-step surface" data-step="markets">
+                <span class="eyebrow">שוק ההון</span>
+                <h2 class="step__title">הנחות שוק ההון והכלכלה</h2>
+
+                <div class="param-row">
+                    <label for="stock-return">תשואה שנתית ממוצעת במדד (%)</label>
+                    <input type="number" id="stock-return" value="9.5" step="0.1">
+                    <small class="source-note">מקור: S&P 500 נומינלי היסטורי (כולל דיבידנדים)</small>
+                </div>
+                <div class="param-row">
+                    <label for="management-fee">דמי ניהול שנתיים (%)</label>
+                    <input type="number" id="management-fee" value="0.1" step="0.01" min="0">
+                    <small class="source-note">הערכה ל-ETF מחקה מדד</small>
+                </div>
+                <div class="param-row">
+                    <label for="inflation-rate">אינפלציה שנתית (%)</label>
+                    <input type="number" id="inflation-rate" value="1.5" step="0.1">
+                    <small class="source-note">מקור: ממוצע בנק ישראל (עשור אחרון)</small>
+                </div>
+            </div>
+
+            <!-- STEP: advanced -->
+            <div class="wizard-step surface" data-step="advanced">
+                <span class="eyebrow">מתקדם (לא חובה)</span>
+                <h2 class="step__title">מיסוי, עמלות וסיכון</h2>
+                <p class="step__help">ברירות המחדל סבירות לישראל. שנה רק אם אתה יודע מה אתה עושה.</p>
+
+                <div class="param-row">
+                    <label for="vat">מע"מ (%)</label>
+                    <input type="number" id="vat" value="18" step="1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="broker-fee">עמלת תיווך בקנייה (%)</label>
+                    <input type="number" id="broker-fee" value="2" step="0.1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="lawyer-fee">שכר טרחת עו"ד (%)</label>
+                    <input type="number" id="lawyer-fee" value="1" step="0.1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="appraiser-fee">שמאי (₪)</label>
+                    <input type="number" id="appraiser-fee" value="3500" step="100" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="advisor-fee">יועץ משכנתא (₪)</label>
+                    <input type="number" id="advisor-fee" value="8000" step="500" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="sale-cost-pct">עלויות מכירת הנכס (%)</label>
+                    <input type="number" id="sale-cost-pct" value="2" step="0.1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="re-gains-tax" id="re-gains-label">מס שבח (%)</label>
+                    <input type="number" id="re-gains-tax" value="0" step="1" min="0">
+                    <small class="source-note" id="re-gains-note">דירה יחידה למגורים, לרוב פטורה</small>
+                </div>
+                <div class="param-row">
+                    <label for="stock-gains-tax">מס רווחי הון על המדד (%)</label>
+                    <input type="number" id="stock-gains-tax" value="25" step="1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="stock-buy-sell-fee">עמלת קנייה/מכירה במדד (%)</label>
+                    <input type="number" id="stock-buy-sell-fee" value="0.09" step="0.01" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="currency-conversion-fee">עמלת המרת מט"ח (%)</label>
+                    <input type="number" id="currency-conversion-fee" value="0.5" step="0.1" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="stock-volatility">תנודתיות שוק ההון לסימולציה (%)</label>
+                    <input type="number" id="stock-volatility" value="15" step="0.5" min="0">
+                </div>
+                <div class="param-row">
+                    <label for="re-volatility">תנודתיות נדל"ן לסימולציה (%)</label>
+                    <input type="number" id="re-volatility" value="5" step="0.5" min="0">
+                </div>
+
+                <div class="param-row">
+                    <label for="max-ltv">מימון בנקאי מקסימלי (% מערך הנכס)</label>
+                    <input type="number" id="max-ltv" value="75" step="1" min="0" max="90">
+                    <small class="source-note">דירה יחידה עד 75%, נכס להשקעה עד 50%</small>
+                </div>
+                <div class="param-row param-row--check">
+                    <label class="check"><input type="checkbox" id="off-plan"> קנייה מקבלן / על הנייר</label>
+                    <small class="source-note">חושף לסיכון אי-מסירה או קריסת קבלן (בסימולציית הסיכון)</small>
+                </div>
+                <div class="param-row">
+                    <label for="contractor-prob">סיכוי אי-מסירה / קריסת קבלן (%)</label>
+                    <input type="number" id="contractor-prob" value="2" step="0.5" min="0" max="100">
+                </div>
+                <div class="param-row">
+                    <label for="contractor-loss">הפסד במקרה כזה (% מערך הנכס)</label>
+                    <input type="number" id="contractor-loss" value="50" step="5" min="0" max="100">
+                </div>
+                <div class="param-row">
+                    <label for="disaster-prob">סיכוי אסון טבע בשנה (%)</label>
+                    <input type="number" id="disaster-prob" value="0.3" step="0.1" min="0" max="100">
+                    <small class="source-note">רעידת אדמה, שריפה, הצפה (נטו אחרי ביטוח)</small>
+                </div>
+                <div class="param-row">
+                    <label for="disaster-loss">הפסד במקרה אסון (% מערך הנכס)</label>
+                    <input type="number" id="disaster-loss" value="20" step="5" min="0" max="100">
+                </div>
+            </div>
+        </div>
+
+        <footer class="wizard__nav">
+            <button id="wizard-back" class="btn btn--ghost" type="button">→ הקודם</button>
+            <button id="wizard-next" class="btn btn--primary" type="button">הבא ←</button>
+        </footer>
+    </section>
+
+    <!-- ============ VIEW: RESULTS ============ -->
+    <section id="view-results" class="view results-view">
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo__mark" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 24 L12 17 L18 20 L28 9" stroke="var(--re)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 27 L12 23 L18 25 L28 16" stroke="var(--stock)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+                    </svg>
+                </span>
+                <div class="logo__text">
+                    <h1>InvestVision</h1>
+                    <span class="logo__tagline" id="results-mode-tagline">מגורים</span>
+                </div>
+            </div>
             <div class="header-controls">
-                <button id="export-pdf-btn" class="btn btn--ghost">
-                    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4M8 13h8M8 17h5M9 3h6l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11v-2a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span>ייצוא PDF</span>
-                </button>
-                <button id="export-csv-btn" class="btn btn--ghost">
-                    <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 9.5h17M9 9.5v10M15 4.5v15" stroke="currentColor" stroke-width="1.5"/></svg>
-                    <span>ייצוא CSV</span>
-                </button>
+                <button id="edit-answers-btn" class="btn btn--ghost"><span>✎ ערוך תשובות</span></button>
+                <button id="restart-btn" class="btn btn--ghost"><span>↺ התחל מחדש</span></button>
+                <button id="export-pdf-btn" class="btn btn--ghost"><span>ייצוא PDF</span></button>
+                <button id="export-csv-btn" class="btn btn--ghost"><span>ייצוא CSV</span></button>
                 <button id="theme-toggle" class="icon-btn" aria-label="החלף מצב תצוגה">
                     <svg class="ico ico--moon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
                     <svg class="ico ico--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -49,287 +369,76 @@
             </div>
         </header>
 
-        <main class="main-content">
-            <!-- Sidebar / Parameters -->
-            <aside class="parameters-panel surface">
-                <div class="panel-header">
-                    <span class="eyebrow">הנחות העבודה</span>
-                    <h2>הגדרות ופרמטרים</h2>
-                    <div class="scenario-selector">
-                        <select id="scenario-select" class="custom-select">
-                            <option value="base">תרחיש סביר (Base Case)</option>
-                            <option value="optimistic">אופטימי לנדל"ן</option>
-                            <option value="pessimistic">פסימי לנדל"ן</option>
-                            <option value="custom">התאמה אישית</option>
-                        </select>
+        <main class="results-dashboard">
+            <header class="verdict surface">
+                <div class="verdict__intro">
+                    <span class="eyebrow">תוצאת הסימולציה</span>
+                    <p class="verdict__statement">המסלול המוביל: <span id="winner-text">…</span></p>
+                </div>
+                <div class="matchup">
+                    <div class="path path--re">
+                        <span class="path__label" id="label-re">נדל"ן <span class="path__dot" style="--c:var(--re)"></span></span>
+                        <span class="path__value mono real-estate-color" id="final-re-net-worth">₪0</span>
+                        <span class="path__roi" id="re-roi">תשואה כוללת: 0%</span>
+                    </div>
+                    <div class="matchup__vs">מול</div>
+                    <div class="path path--stock">
+                        <span class="path__label" id="label-stock">שוק ההון <span class="path__dot" style="--c:var(--stock)"></span></span>
+                        <span class="path__value mono stock-color" id="final-stock-net-worth">₪0</span>
+                        <span class="path__roi" id="stock-roi">תשואה כוללת: 0%</span>
                     </div>
                 </div>
-
-                <div class="tabs">
-                    <button class="tab-btn active" data-target="general-params">כללי</button>
-                    <button class="tab-btn" data-target="real-estate-params">נדל"ן</button>
-                    <button class="tab-btn" data-target="stock-params">שוק ההון</button>
+                <div class="balance">
+                    <div class="balance__bar" role="img" aria-label="חלוקת השווי הסופי בין שני המסלולים">
+                        <div class="balance__re" id="balance-re" style="flex-basis:50%"></div>
+                        <div class="balance__stock" id="balance-stock" style="flex-basis:50%"></div>
+                    </div>
+                    <div class="balance__diff" id="winner-diff">פער של ₪0</div>
                 </div>
+                <p class="verdict__explain" id="verdict-explain"></p>
+            </header>
 
-                <div class="tab-content scrollable">
-                    <!-- General Parameters -->
-                    <div id="general-params" class="param-group active">
-                        <div class="param-row">
-                            <label for="initial-capital">הון עצמי התחלתי (₪)</label>
-                            <input type="text" inputmode="numeric" id="initial-capital" class="money-input" value="1000000">
-                        </div>
-                        <div class="param-row">
-                            <label for="investment-years">תקופת השקעה (שנים)</label>
-                            <input type="number" id="investment-years" value="30" min="5" max="50">
-                        </div>
-                        <div class="param-row has-auto-toggle">
-                            <div class="label-wrapper">
-                                <label for="inflation-rate">אינפלציה שנתית (%)</label>
-                                <label class="toggle">
-                                    <input type="checkbox" id="auto-inflation" checked>
-                                    <span class="slider"></span>
-                                    <span class="toggle-label">Auto</span>
-                                </label>
-                            </div>
-                            <input type="number" id="inflation-rate" value="1.5" step="0.1" disabled>
-                            <small class="source-note">מקור: ממוצע בנק ישראל (עשור אחרון)</small>
-                        </div>
+            <div class="charts-container">
+                <div class="chart-wrapper surface main-chart">
+                    <div class="chart-head">
+                        <span class="eyebrow">ציר הזמן</span>
+                        <h3>התפתחות שווי נקי (Net Worth)</h3>
                     </div>
-
-                    <!-- Real Estate Parameters -->
-                    <div id="real-estate-params" class="param-group">
-                        <div class="param-row">
-                            <label for="property-value">שווי הנכס לרכישה (₪)</label>
-                            <input type="text" inputmode="numeric" id="property-value" class="money-input" value="2500000">
-                        </div>
-                        <div class="param-row">
-                            <label for="monthly-rent">שכירות חודשית צפויה (₪)</label>
-                            <input type="text" inputmode="numeric" id="monthly-rent" class="money-input" value="6500">
-                        </div>
-                        <div class="param-row has-auto-toggle">
-                            <div class="label-wrapper">
-                                <label for="mortgage-rate">ריבית משכנתא שנתית (%)</label>
-                                <label class="toggle">
-                                    <input type="checkbox" id="auto-mortgage-rate" checked>
-                                    <span class="slider"></span>
-                                    <span class="toggle-label">Auto</span>
-                                </label>
-                            </div>
-                            <input type="number" id="mortgage-rate" value="5" step="0.1" disabled>
-                            <small class="source-note">מקור: ממוצע בנק ישראל 2024</small>
-                        </div>
-                        <div class="param-row">
-                            <label for="mortgage-years">תקופת המשכנתא (שנים)</label>
-                            <input type="number" id="mortgage-years" value="30" min="1" max="40">
-                            <small class="source-note">נפרד מתקופת ההשקעה</small>
-                        </div>
-                        <div class="param-row has-auto-toggle">
-                            <div class="label-wrapper">
-                                <label for="property-appreciation">עליית ערך שנתית (%)</label>
-                                <label class="toggle">
-                                    <input type="checkbox" id="auto-property-appreciation" checked>
-                                    <span class="slider"></span>
-                                    <span class="toggle-label">Auto</span>
-                                </label>
-                            </div>
-                            <input type="number" id="property-appreciation" value="5" step="0.1" disabled>
-                            <small class="source-note">מקור: למ"ס, ממוצע רב-שנתי מתון</small>
-                        </div>
-
-                        <!-- Advanced RE Params (Accordion) -->
-                        <details class="advanced-params">
-                            <summary>הוצאות ועמלות נדל"ן (מתקדם)</summary>
-
-                            <div class="param-row has-auto-toggle">
-                                <div class="label-wrapper">
-                                    <label for="broker-fee">עמלת תיווך (%)</label>
-                                    <label class="toggle"><input type="checkbox" id="auto-broker-fee" checked><span class="slider"></span></label>
-                                </div>
-                                <input type="number" id="broker-fee" value="2" step="0.1" disabled>
-                                <small class="source-note">לא כולל מע"מ</small>
-                            </div>
-
-                            <div class="param-row has-auto-toggle">
-                                <div class="label-wrapper">
-                                    <label for="lawyer-fee">שכר טרחת עו"ד (%)</label>
-                                    <label class="toggle"><input type="checkbox" id="auto-lawyer-fee" checked><span class="slider"></span></label>
-                                </div>
-                                <input type="number" id="lawyer-fee" value="1" step="0.1" disabled>
-                                <small class="source-note">לא כולל מע"מ</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="maintenance-yearly">תחזוקה שנתית (% משווי הנכס)</label>
-                                <input type="number" id="maintenance-yearly" value="0.5" step="0.1">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="vacancy-months">חודשי אי-תפוסה בשנה</label>
-                                <input type="number" id="vacancy-months" value="1" step="0.1" max="12">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="rental-tax">מס על הכנסות שכירות (%)</label>
-                                <input type="number" id="rental-tax" value="10" step="0.5" min="0">
-                                <small class="source-note">מסלול 10% על שכ"ד ברוטו</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="sale-cost-pct">עלויות מכירת הנכס (%)</label>
-                                <input type="number" id="sale-cost-pct" value="2" step="0.1" min="0">
-                                <small class="source-note">תיווך ועו"ד במכירה</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="appraiser-fee">שמאי (₪)</label>
-                                <input type="number" id="appraiser-fee" value="3500" step="100" min="0">
-                                <small class="source-note">לפני מע"מ</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="advisor-fee">יועץ משכנתא (₪)</label>
-                                <input type="number" id="advisor-fee" value="8000" step="500" min="0">
-                                <small class="source-note">לפני מע"מ</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="insurance-yearly">ביטוח שנתי (₪)</label>
-                                <input type="number" id="insurance-yearly" value="3000" step="100" min="0">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="vat">מע"מ (%)</label>
-                                <input type="number" id="vat" value="18" step="1" min="0">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="re-gains-tax">מס שבח (%)</label>
-                                <input type="number" id="re-gains-tax" value="25" step="1" min="0">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="re-volatility">תנודתיות נדל"ן בסימולציה (%)</label>
-                                <input type="number" id="re-volatility" value="5" step="0.5" min="0">
-                                <small class="source-note">סטיית תקן שנתית ל-Monte Carlo</small>
-                            </div>
-                        </details>
-                    </div>
-
-                    <!-- Stock Market Parameters -->
-                    <div id="stock-params" class="param-group">
-                        <div class="param-row has-auto-toggle">
-                            <div class="label-wrapper">
-                                <label for="stock-return">תשואה שנתית ממוצעת (%)</label>
-                                <label class="toggle">
-                                    <input type="checkbox" id="auto-stock-return" checked>
-                                    <span class="slider"></span>
-                                    <span class="toggle-label">Auto</span>
-                                </label>
-                            </div>
-                            <input type="number" id="stock-return" value="9.5" step="0.1" disabled>
-                            <small class="source-note">מקור: S&P 500 נומינלי היסטורי (כולל דיבידנדים)</small>
-                        </div>
-
-                        <!-- Advanced Stock Params (Accordion) -->
-                        <details class="advanced-params">
-                            <summary>הוצאות ומיסוי שוק ההון (מתקדם)</summary>
-                            <div class="param-row has-auto-toggle">
-                                <div class="label-wrapper">
-                                    <label for="management-fee">דמי ניהול שנתיים (%)</label>
-                                    <label class="toggle"><input type="checkbox" id="auto-management-fee" checked><span class="slider"></span></label>
-                                </div>
-                                <input type="number" id="management-fee" value="0.1" step="0.01" disabled>
-                                <small class="source-note">הערכה ל-ETF מחקה מדד</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="stock-gains-tax">מס רווחי הון (%)</label>
-                                <input type="number" id="stock-gains-tax" value="25" step="1" min="0">
-                                <small class="source-note">בישראל: 25% על הרווח הריאלי</small>
-                            </div>
-
-                            <div class="param-row">
-                                <label for="stock-buy-sell-fee">עמלת קנייה/מכירה (%)</label>
-                                <input type="number" id="stock-buy-sell-fee" value="0.09" step="0.01" min="0">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="currency-conversion-fee">עמלת המרת מט"ח (%)</label>
-                                <input type="number" id="currency-conversion-fee" value="0.5" step="0.1" min="0">
-                            </div>
-
-                            <div class="param-row">
-                                <label for="stock-volatility">תנודתיות שוק ההון בסימולציה (%)</label>
-                                <input type="number" id="stock-volatility" value="15" step="0.5" min="0">
-                                <small class="source-note">סטיית תקן שנתית ל-Monte Carlo</small>
-                            </div>
-                        </details>
-                    </div>
-
-                    <button id="calculate-btn" class="btn btn--primary full-width">חשב והשווה</button>
+                    <div class="chart-canvas"><canvas id="netWorthChart"></canvas></div>
                 </div>
-            </aside>
-
-            <!-- Results Dashboard -->
-            <section class="results-dashboard">
-                <!-- Verdict: the head-to-head outcome -->
-                <header class="verdict surface">
-                    <div class="verdict__intro">
-                        <span class="eyebrow">תוצאת הסימולציה</span>
-                        <p class="verdict__statement">המסלול המוביל: <span id="winner-text">—</span></p>
-                    </div>
-
-                    <div class="matchup">
-                        <div class="path path--re">
-                            <span class="path__label">נדל"ן <span class="path__dot" style="--c:var(--re)"></span></span>
-                            <span class="path__value mono real-estate-color" id="final-re-net-worth">₪0</span>
-                            <span class="path__roi" id="re-roi">תשואה כוללת: 0%</span>
-                        </div>
-                        <div class="matchup__vs">מול</div>
-                        <div class="path path--stock">
-                            <span class="path__label">שוק ההון <span class="path__dot" style="--c:var(--stock)"></span></span>
-                            <span class="path__value mono stock-color" id="final-stock-net-worth">₪0</span>
-                            <span class="path__roi" id="stock-roi">תשואה כוללת: 0%</span>
-                        </div>
-                    </div>
-
-                    <div class="balance">
-                        <div class="balance__bar" role="img" aria-label="חלוקת השווי הסופי בין שני המסלולים">
-                            <div class="balance__re" id="balance-re" style="flex-basis:50%"></div>
-                            <div class="balance__stock" id="balance-stock" style="flex-basis:50%"></div>
-                        </div>
-                        <div class="balance__diff" id="winner-diff">פער של ₪0</div>
-                    </div>
-                </header>
-
-                <div class="charts-container">
-                    <div class="chart-wrapper surface main-chart">
+                <div class="chart-grid">
+                    <div class="chart-wrapper surface">
                         <div class="chart-head">
-                            <span class="eyebrow">ציר הזמן</span>
-                            <h3>התפתחות שווי נקי (Net Worth)</h3>
+                            <span class="eyebrow">סיכון · Monte Carlo</span>
+                            <h3>טווח התרחישים האפשריים</h3>
                         </div>
-                        <div class="chart-canvas"><canvas id="netWorthChart"></canvas></div>
+                        <div class="chart-canvas"><canvas id="monteCarloChart"></canvas></div>
                     </div>
-                    <div class="chart-grid">
-                        <div class="chart-wrapper surface">
-                            <div class="chart-head">
-                                <span class="eyebrow">סיכון · Monte Carlo</span>
-                                <h3>טווח התרחישים האפשריים</h3>
-                            </div>
-                            <div class="chart-canvas"><canvas id="monteCarloChart"></canvas></div>
+                    <div class="chart-wrapper surface">
+                        <div class="chart-head">
+                            <span class="eyebrow">עלויות</span>
+                            <h3>השוואת מיסוי ועמלות</h3>
                         </div>
-                        <div class="chart-wrapper surface">
-                            <div class="chart-head">
-                                <span class="eyebrow">עלויות</span>
-                                <h3>השוואת מיסוי ועמלות</h3>
-                            </div>
-                            <div class="chart-canvas"><canvas id="feesChart"></canvas></div>
-                        </div>
+                        <div class="chart-canvas"><canvas id="feesChart"></canvas></div>
                     </div>
                 </div>
-            </section>
+            </div>
+
+            <div class="chart-wrapper surface cashflow-card">
+                <div class="chart-head">
+                    <span class="eyebrow">שקיפות</span>
+                    <h3 id="cashflow-title">תזרים שנתי</h3>
+                    <p class="step__help" id="cashflow-help"></p>
+                </div>
+                <div class="table-scroll">
+                    <table class="cashflow-table">
+                        <thead id="cashflow-head"></thead>
+                        <tbody id="cashflow-body"></tbody>
+                    </table>
+                </div>
+            </div>
         </main>
-    </div>
+    </section>
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
@@ -338,5 +447,6 @@
     <script src="js/charts.js"></script>
     <script src="js/export.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/wizard.js"></script>
 </body>
 </html>

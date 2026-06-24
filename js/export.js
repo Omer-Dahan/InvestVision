@@ -9,48 +9,33 @@ window.exportToPDF = function() {
         html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-
-    // Temporarily adjust styles for better PDF output if needed
-    // The html2pdf library will render the element as it looks on screen.
-    // If it's in dark mode, it will print dark mode.
-    
     html2pdf().set(opt).from(element).save();
 };
 
-window.exportToCSV = function(yearlyData) {
-    if (!yearlyData || yearlyData.length === 0) return;
+// Accepts the full results object (so we can label by mode and export the cash-flow breakdown)
+window.exportToCSV = function(results) {
+    if (!results || !results.yearlyData || results.yearlyData.length === 0) return;
 
-    const headers = [
-        "שנה",
-        "שווי נכס נדלן",
-        "יתרת משכנתא",
-        "שווי נקי נדלן",
-        "שווי תיק שוק ההון",
-        "תזרים נדלן מצטבר",
-        "הכנסה משכירות שנתית",
-        "שווי נקי נדלן (מותאם אינפלציה)",
-        "שווי תיק שוק ההון (מותאם אינפלציה)"
-    ];
+    const housing = results.mode === 'housing';
+    const round = n => Math.round(n);
 
-    const rows = yearlyData.map(d => [
-        d.year,
-        Math.round(d.propertyValue),
-        Math.round(d.mortgageBalance),
-        Math.round(d.reNetWorth),
-        Math.round(d.stockPortfolioValue),
-        Math.round(d.cumulativeReCashFlow),
-        Math.round(d.yearlyRentIncome),
-        Math.round(d.inflationAdjustedReNetWorth),
-        Math.round(d.inflationAdjustedStockValue)
-    ]);
+    const headers = housing
+        ? ['שנה', 'שווי נכס', 'יתרת משכנתא', 'שווי נקי - קנייה', 'תיק - שכירות+השקעה',
+           'שכר דירה (שוכר)', 'עלות דיור (קונה)', 'מתוכו משכנתא', 'מושקע במדד', 'מצטבר מושקע']
+        : ['שנה', 'שווי נכס', 'יתרת משכנתא', 'שווי נקי - נדלן', 'שווי תיק - מדד',
+           'הכנסת שכירות', 'הוצאות', 'החזר משכנתא', 'תזרים נטו', 'מצטבר (מהכיס)'];
 
-    let csvContent = "\uFEFF"; // BOM for UTF-8 Excel support (Hebrew)
-    csvContent += headers.join(",") + "\n";
-
-    rows.forEach(rowArray => {
-        let row = rowArray.join(",");
-        csvContent += row + "\n";
+    const rows = results.yearlyData.map(d => {
+        const cf = d.cf || {};
+        const common = [d.year, round(d.propertyValue), round(d.mortgageBalance), round(d.reNetWorth), round(d.stockPortfolioValue)];
+        return housing
+            ? common.concat([round(cf.rent), round(cf.buyerCost), round(cf.mortgage), round(cf.invested), round(cf.cumulative)])
+            : common.concat([round(cf.rent), round(cf.expenses), round(cf.mortgage), round(cf.net), round(cf.cumulative)]);
     });
+
+    let csvContent = "﻿"; // BOM for UTF-8 Excel support (Hebrew)
+    csvContent += headers.join(",") + "\n";
+    rows.forEach(r => { csvContent += r.join(",") + "\n"; });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -61,4 +46,5 @@ window.exportToCSV = function(yearlyData) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 };

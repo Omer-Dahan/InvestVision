@@ -46,8 +46,72 @@ const CONFIG = {
             { limit: 6055070, rate: 0.08 },
             { limit: Infinity, rate: 0.10 }
         ],
-        
+
+        // Purchase Tax Brackets - Single / Primary Residence (Dira Yehida) 2024
+        PURCHASE_TAX_BRACKETS_RESIDENT: [
+            { limit: 1978745, rate: 0.00 },
+            { limit: 2347040, rate: 0.035 },
+            { limit: 6055070, rate: 0.05 },
+            { limit: 20183565, rate: 0.08 },
+            { limit: Infinity, rate: 0.10 }
+        ],
+
+        ARNONA_PER_SQM_YEARLY: 50, // ₪ per sqm/year (rough national average)
+
         CAPITAL_GAINS_TAX: 0.25 // 25% on real profit
+    },
+
+    // One-time setup costs when moving into a home — auto-estimated from apartment size (m²)
+    SETUP_COSTS: {
+        RENOVATION_PER_SQM: 1500,  // ₪/m²
+        ELECTRICAL_PER_SQM: 200,   // ₪/m² (rewiring, points, panel)
+        FURNITURE_PER_SQM: 700,    // ₪/m²
+        KITCHEN_FIXED: 40000,      // ₪ (largely size-independent)
+        AC_UNIT_COST: 4500,        // ₪ per split unit (incl. install)
+        SQM_PER_AC_UNIT: 30        // one unit per ~30 m²
+    },
+
+    // Mode metadata for the landing screen / wizard
+    MODES: {
+        housing: {
+            label: 'מגורים',
+            title: 'לקנות בית או לשכור ולהשקיע?',
+            description: 'אתה גר בנכס. משווים קניית בית עם משכנתא מול שכירת דירה והשקעת ההון + ההפרש החודשי במדד.'
+        },
+        investment: {
+            label: 'השקעה',
+            title: 'נכס להשקעה או שוק ההון?',
+            description: 'קונים דירה ומשכירים אותה (הכנסת שכירות) מול השקעת ההון במדד.'
+        }
+    },
+
+    // Generic defaults used by the wizard
+    DEFAULTS: {
+        livingRentMonthly: 5500, // ₪/month a renter would pay to live
+        apartmentSqm: 100
+    },
+
+    // Bank financing limits and out-of-pocket / family gap loans
+    FINANCING: {
+        MAX_LTV_RESIDENT: 75,   // % max mortgage for a single residence
+        MAX_LTV_INVESTOR: 50,   // % max mortgage for an investment property
+        EXTERNAL_LOAN_RATE: 8,  // % default rate for non-bank / family gap loans
+        EXTERNAL_LOAN_YEARS: 7  // years to repay the gap loan
+    },
+
+    // Ongoing / periodic property costs beyond mortgage
+    PROPERTY_COSTS: {
+        BUILDING_FEES_MONTHLY: 250,      // ₪/month house committee ( va'ad bayit, lobby etc.)
+        PERIODIC_RENOVATION_PER_SQM: 500, // ₪/m² refresh
+        PERIODIC_RENOVATION_YEARS: 10     // every N years
+    },
+
+    // Tail risks — applied in the Monte Carlo simulation only
+    RISK: {
+        CONTRACTOR_PROB: 2,        // % one-time chance of non-delivery / contractor collapse (off-plan)
+        CONTRACTOR_LOSS: 50,       // % of property value lost if it happens
+        DISASTER_PROB_YEARLY: 0.3, // % yearly chance of a major natural disaster (quake/flood/fire)
+        DISASTER_LOSS: 20          // % of property value lost (net of insurance) if it happens
     },
 
     STOCK_MARKET: {

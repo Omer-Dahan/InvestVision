@@ -1,341 +1,304 @@
 // js/app.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- State & Managers ---
+
     const chartManager = new ChartManager();
     let currentResults = null;
     let currentMcResults = null;
 
-    // --- DOM Elements ---
-    const calculateBtn = document.getElementById('calculate-btn');
-    const themeToggle = document.getElementById('theme-toggle');
-    const scenarioSelect = document.getElementById('scenario-select');
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const exportPdfBtn = document.getElementById('export-pdf-btn');
-    const exportCsvBtn = document.getElementById('export-csv-btn');
+    const STORAGE_KEY = 'investvision_v2';
 
-    // Auto Toggles
-    const autoToggles = document.querySelectorAll('.toggle input[type="checkbox"]');
+    // --- Helpers ---
 
-    // --- Initialize ---
-    loadSettingsFromStorage();
-    initTheme();
-    bindEvents();
-    setupMoneyInputs();
-
-    // Initial Calculation
-    runFullSimulation();
-
-    // --- Core Logic ---
-
-    // Read a numeric field, tolerating thousands separators (commas) in money inputs
     function numFromField(id) {
         const el = document.getElementById(id);
         if (!el) return 0;
         return parseFloat(el.value.toString().replace(/,/g, '')) || 0;
     }
 
+    function getMode() {
+        return document.body.dataset.mode === 'investment' ? 'investment' : 'housing';
+    }
+
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(value || 0);
+    }
+
     function getParamsFromForm() {
+        const mode = getMode();
         return {
+            mode,
             initialCapital: numFromField('initial-capital'),
             investmentYears: Math.min(50, Math.max(1, parseInt(document.getElementById('investment-years').value) || 30)),
-            inflationRate: parseFloat(document.getElementById('inflation-rate').value) || 0,
+            inflationRate: numFromField('inflation-rate'),
 
             propertyValue: numFromField('property-value'),
-            monthlyRent: numFromField('monthly-rent'),
-            mortgageRate: parseFloat(document.getElementById('mortgage-rate').value) || 0,
-            propertyAppreciation: parseFloat(document.getElementById('property-appreciation').value) || 0,
-            brokerFee: parseFloat(document.getElementById('broker-fee').value) || 0,
-            lawyerFee: parseFloat(document.getElementById('lawyer-fee').value) || 0,
-            maintenanceYearly: parseFloat(document.getElementById('maintenance-yearly').value) || 0,
-            vacancyMonths: Math.min(12, Math.max(0, parseFloat(document.getElementById('vacancy-months').value) || 0)),
-            
-            stockReturn: parseFloat(document.getElementById('stock-return').value) || 0,
-            managementFee: parseFloat(document.getElementById('management-fee').value) || 0,
-
-            // Newly exposed assumptions (previously hard-coded)
+            apartmentSqm: Math.max(1, numFromField('apartment-sqm')),
+            mortgageRate: numFromField('mortgage-rate'),
             mortgageYears: Math.min(40, Math.max(1, parseInt(document.getElementById('mortgage-years').value) || 30)),
+            propertyAppreciation: numFromField('property-appreciation'),
+
+            // Rent means different things per mode (same engine field)
+            monthlyRent: mode === 'housing' ? numFromField('living-rent') : numFromField('monthly-rent'),
+            vacancyMonths: Math.min(12, Math.max(0, numFromField('vacancy-months'))),
             rentalTax: Math.max(0, numFromField('rental-tax')),
-            saleCostPct: Math.max(0, numFromField('sale-cost-pct')),
+
+            maintenanceYearly: Math.max(0, numFromField('maintenance-yearly')),
+            insuranceYearly: Math.max(0, numFromField('insurance-yearly')),
+            arnonaYearly: Math.max(0, numFromField('arnona-yearly')),
+
+            // One-time setup (housing) — already absolute ₪ in the form
+            renovationCost: Math.max(0, numFromField('renovation-cost')),
+            electricalCost: Math.max(0, numFromField('electrical-cost')),
+            acCost: Math.max(0, numFromField('ac-cost')),
+            furnitureCost: Math.max(0, numFromField('furniture-cost')),
+            kitchenCost: Math.max(0, numFromField('kitchen-cost')),
+
+            stockReturn: numFromField('stock-return'),
+            managementFee: Math.max(0, numFromField('management-fee')),
+
+            // Advanced
+            vat: Math.max(0, numFromField('vat')),
+            brokerFee: Math.max(0, numFromField('broker-fee')),
+            lawyerFee: Math.max(0, numFromField('lawyer-fee')),
             appraiserFee: Math.max(0, numFromField('appraiser-fee')),
             advisorFee: Math.max(0, numFromField('advisor-fee')),
-            insuranceYearly: Math.max(0, numFromField('insurance-yearly')),
-            vat: Math.max(0, numFromField('vat')),
+            saleCostPct: Math.max(0, numFromField('sale-cost-pct')),
             reGainsTax: Math.max(0, numFromField('re-gains-tax')),
             stockGainsTax: Math.max(0, numFromField('stock-gains-tax')),
             stockBuySellFee: Math.max(0, numFromField('stock-buy-sell-fee')),
             currencyConversionFee: Math.max(0, numFromField('currency-conversion-fee')),
             stockVolatility: Math.max(0, numFromField('stock-volatility')),
             reVolatility: Math.max(0, numFromField('re-volatility')),
+
+            // Financing (bank LTV cap + non-bank / family gap loan)
+            maxLtv: Math.max(0, numFromField('max-ltv')),
+            externalLoanRate: Math.max(0, numFromField('external-loan-rate')),
+            externalLoanYears: Math.min(30, Math.max(1, parseInt(document.getElementById('external-loan-years').value) || 7)),
+
+            // Ongoing / periodic property costs
+            buildingFeesMonthly: Math.max(0, numFromField('building-fees')),
+            periodicRenovationCost: Math.max(0, numFromField('periodic-reno-cost')),
+            periodicRenovationYears: Math.max(0, parseInt(document.getElementById('periodic-reno-years').value) || 0),
+
+            // Tail risks (used in the Monte Carlo simulation)
+            offPlan: !!(document.getElementById('off-plan') && document.getElementById('off-plan').checked),
+            contractorRiskProb: Math.max(0, numFromField('contractor-prob')),
+            contractorLossPct: Math.max(0, numFromField('contractor-loss')),
+            disasterProbYearly: Math.max(0, numFromField('disaster-prob')),
+            disasterLossPct: Math.max(0, numFromField('disaster-loss'))
         };
     }
 
-    function updateFormFromScenario(scenarioKey) {
-        if (scenarioKey === 'custom') return;
-        
-        const scenario = CONFIG.SCENARIOS[scenarioKey];
-        if (!scenario) return;
+    // --- Views ---
 
-        const updateField = (id, value) => {
-            const el = document.getElementById(id);
-            if (el) el.value = value;
-        };
-
-        updateField('inflation-rate', scenario.inflationRate);
-        updateField('mortgage-rate', scenario.mortgageRate);
-        updateField('property-appreciation', scenario.propertyAppreciation);
-        updateField('broker-fee', scenario.brokerFee);
-        updateField('lawyer-fee', scenario.lawyerFee);
-        updateField('stock-return', scenario.stockReturn);
-        updateField('management-fee', scenario.managementFee);
-
-        // Turn ON auto toggles
-        autoToggles.forEach(toggle => {
-            toggle.checked = true;
-            const inputId = toggle.id.replace('auto-', '');
-            const input = document.getElementById(inputId);
-            if(input) input.disabled = true;
-        });
+    function showView(name) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('view--active'));
+        const el = document.getElementById('view-' + name);
+        if (el) el.classList.add('view--active');
+        window.scrollTo(0, 0);
     }
 
-    // --- Thousands separators for money inputs ---
+    // --- Simulation + Results ---
+
+    function runFullSimulation() {
+        const params = getParamsFromForm();
+        saveSettings(params);
+
+        const calc = new FinancialCalculator(params);
+        currentResults = calc.runSimulation();
+
+        const mc = new MonteCarloSimulation(params, currentResults);
+        currentMcResults = mc.run();
+
+        const summary = currentResults.summary;
+        const labels = summary.labels || { re: 'נדל"ן', stock: 'שוק ההון' };
+
+        updateDashboard(summary, labels);
+        renderCashflowTable(currentResults);
+
+        chartManager.renderNetWorthChart('netWorthChart', currentResults.yearlyData, labels);
+        chartManager.renderMonteCarloChart('monteCarloChart', currentMcResults, labels);
+        chartManager.renderFeesChart('feesChart', summary, labels);
+    }
+
+    function runAndShowResults() {
+        showView('results');
+        document.getElementById('results-mode-tagline').textContent =
+            getMode() === 'housing' ? 'מגורים · קנייה מול שכירות והשקעה' : 'השקעה · נכס מול שוק ההון';
+        // Defer so the results view has layout before charts size themselves
+        setTimeout(runFullSimulation, 30);
+    }
+
+    function updateDashboard(summary, labels) {
+        document.getElementById('label-re').innerHTML = `${labels.re} <span class="path__dot" style="--c:var(--re)"></span>`;
+        document.getElementById('label-stock').innerHTML = `${labels.stock} <span class="path__dot" style="--c:var(--stock)"></span>`;
+
+        document.getElementById('final-re-net-worth').textContent = formatCurrency(summary.finalReNetWorth);
+        document.getElementById('re-roi').textContent = `תשואה כוללת: ${summary.reROI.toFixed(1)}%`;
+        document.getElementById('final-stock-net-worth').textContent = formatCurrency(summary.finalStockNetWorth);
+        document.getElementById('stock-roi').textContent = `תשואה כוללת: ${summary.stockROI.toFixed(1)}%`;
+
+        const winnerEl = document.getElementById('winner-text');
+        const winLabel = summary.winner === 'real-estate' ? labels.re : labels.stock;
+        winnerEl.textContent = winLabel;
+        winnerEl.className = summary.winner === 'real-estate' ? 'real-estate-color' : 'stock-color';
+
+        document.getElementById('winner-diff').textContent = `פער של ${formatCurrency(summary.difference)}`;
+
+        const reVal = Math.max(0, summary.finalReNetWorth);
+        const stockVal = Math.max(0, summary.finalStockNetWorth);
+        const total = reVal + stockVal;
+        const rePct = total > 0 ? (reVal / total) * 100 : 50;
+        document.getElementById('balance-re').style.flexBasis = `${rePct}%`;
+        document.getElementById('balance-stock').style.flexBasis = `${100 - rePct}%`;
+
+        document.getElementById('verdict-explain').textContent = buildExplanation(summary, labels);
+    }
+
+    function buildExplanation(summary, labels) {
+        const winLabel = summary.winner === 'real-estate' ? labels.re : labels.stock;
+        const diff = formatCurrency(summary.difference);
+        const winRate = currentMcResults
+            ? (summary.winner === 'real-estate' ? currentMcResults.winRate.re : currentMcResults.winRate.stock)
+            : null;
+        let txt = `על פי ההנחות שהזנת, מסלול "${winLabel}" צפוי להוביל בפער של ${diff} בתום התקופה.`;
+        if (winRate != null) {
+            txt += ` בסימולציית הסיכון (Monte Carlo) מסלול זה ניצח ב-${winRate.toFixed(0)}% מהתרחישים.`;
+        }
+        if (getMode() === 'housing') {
+            txt += ' שים לב: התוצאה רגישה מאוד לתשואת שוק ההון. הורד אותה כדי לראות מתי קנייה משתלמת יותר.';
+        }
+        return txt;
+    }
+
+    // --- Per-year cash-flow table (the transparency the user asked for) ---
+
+    function renderCashflowTable(results) {
+        const head = document.getElementById('cashflow-head');
+        const body = document.getElementById('cashflow-body');
+        const title = document.getElementById('cashflow-title');
+        const help = document.getElementById('cashflow-help');
+        const round = n => Math.round(n).toLocaleString('he-IL');
+
+        let cols;
+        if (results.mode === 'housing') {
+            title.textContent = 'תזרים שנתי: קנייה מול שכירות';
+            help.textContent = 'כל שנה: עלות הדיור של הקונה מול שכר הדירה, וההפרש שהשוכר משקיע במדד. בשנים הראשונות ההפרש גדול, בדיוק הכסף שהקונה "מזרים" למשכנתא.';
+            cols = ['שנה', 'שכר דירה (שוכר)', 'עלות דיור (קונה)', 'מתוכו משכנתא', 'מושקע במדד', 'מצטבר מושקע'];
+            head.innerHTML = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+            body.innerHTML = results.yearlyData.map(d => {
+                const cf = d.cf;
+                const cls = cf.invested >= 0 ? '' : ' class="neg"';
+                return `<tr><td>${d.year}</td><td>${round(cf.rent)}</td><td>${round(cf.buyerCost)}</td>` +
+                       `<td>${round(cf.mortgage)}</td><td${cls}>${round(cf.invested)}</td><td>${round(cf.cumulative)}</td></tr>`;
+            }).join('');
+        } else {
+            title.textContent = 'תזרים שנתי: נכס להשקעה';
+            help.textContent = 'כל שנה: הכנסת שכירות פחות הוצאות והחזר משכנתא. תזרים שלילי = כסף שאתה מזרים מהכיס. שים לב לשנים הראשונות.';
+            cols = ['שנה', 'הכנסת שכירות', 'הוצאות', 'החזר משכנתא', 'תזרים נטו', 'מצטבר (מהכיס)'];
+            head.innerHTML = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+            body.innerHTML = results.yearlyData.map(d => {
+                const cf = d.cf;
+                const cls = cf.net >= 0 ? '' : ' class="neg"';
+                return `<tr><td>${d.year}</td><td>${round(cf.rent)}</td><td>${round(cf.expenses)}</td>` +
+                       `<td>${round(cf.mortgage)}</td><td${cls}>${round(cf.net)}</td><td>${round(cf.cumulative)}</td></tr>`;
+            }).join('');
+        }
+    }
+
+    // --- Money inputs (thousands separators) ---
+
+    const moneyFormatter = new Intl.NumberFormat('en-US');
     function formatMoneyField(el, preserveCaret) {
         const digits = el.value.replace(/[^\d]/g, '');
         const caretFromEnd = preserveCaret ? el.value.length - el.selectionStart : 0;
-        el.value = digits ? parseInt(digits, 10).toLocaleString('en-US') : '';
+        el.value = digits ? moneyFormatter.format(parseInt(digits, 10)) : '';
         if (preserveCaret) {
             const pos = Math.max(0, el.value.length - caretFromEnd);
             try { el.setSelectionRange(pos, pos); } catch (e) { /* ignore */ }
         }
     }
-
     function setupMoneyInputs() {
         document.querySelectorAll('.money-input').forEach(el => {
-            formatMoneyField(el, false); // format initial / restored value
-            el.addEventListener('input', () => {
-                formatMoneyField(el, true);
-                scenarioSelect.value = 'custom';
-            });
+            formatMoneyField(el, false);
+            el.addEventListener('input', () => formatMoneyField(el, true));
         });
     }
 
-    function formatCurrency(value) {
-        return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(value);
-    }
-
-    function runFullSimulation() {
-        const params = getParamsFromForm();
-        saveSettingsToStorage(params);
-        
-        // 1. Run Standard Simulation
-        const calc = new FinancialCalculator(params);
-        currentResults = calc.runSimulation();
-
-        // 2. Run Monte Carlo Simulation
-        const mc = new MonteCarloSimulation(params, currentResults);
-        currentMcResults = mc.run();
-
-        // 3. Update UI
-        updateDashboard(currentResults.summary, currentMcResults);
-        
-        // 4. Update Charts
-        chartManager.renderNetWorthChart('netWorthChart', currentResults.yearlyData);
-        chartManager.renderMonteCarloChart('monteCarloChart', currentMcResults);
-        chartManager.renderFeesChart('feesChart', currentResults.summary);
-    }
-
-    function updateDashboard(summary, mcResults) {
-        // Summary Cards
-        document.getElementById('final-re-net-worth').textContent = formatCurrency(summary.finalReNetWorth);
-        document.getElementById('re-roi').textContent = `תשואה כוללת: ${summary.reROI.toFixed(1)}%`;
-        
-        document.getElementById('final-stock-net-worth').textContent = formatCurrency(summary.finalStockNetWorth);
-        document.getElementById('stock-roi').textContent = `תשואה כוללת: ${summary.stockROI.toFixed(1)}%`;
-
-        const winnerEl = document.getElementById('winner-text');
-        const winnerDiffEl = document.getElementById('winner-diff');
-        
-        if (summary.winner === 'real-estate') {
-            winnerEl.textContent = 'נדל"ן';
-            winnerEl.className = 'card-value real-estate-color';
-        } else {
-            winnerEl.textContent = 'שוק ההון';
-            winnerEl.className = 'card-value stock-color';
-        }
-        
-        winnerDiffEl.textContent = `פער של ${formatCurrency(summary.difference)}`;
-
-        // Balance bar — proportional split between the two outcomes (the signature scale)
-        const reVal = Math.max(0, summary.finalReNetWorth);
-        const stockVal = Math.max(0, summary.finalStockNetWorth);
-        const total = reVal + stockVal;
-        const rePct = total > 0 ? (reVal / total) * 100 : 50;
-        const balanceRe = document.getElementById('balance-re');
-        const balanceStock = document.getElementById('balance-stock');
-        if (balanceRe && balanceStock) {
-            balanceRe.style.flexBasis = `${rePct}%`;
-            balanceStock.style.flexBasis = `${100 - rePct}%`;
-        }
-
-        // We can add the win rate to the subtitle of the charts or somewhere in UI if wanted
-        // console.log(`MC Win rate: RE ${mcResults.winRate.re}%, Stock ${mcResults.winRate.stock}%`);
-    }
-
-    // --- Events ---
-
-    function bindEvents() {
-        // Calculate Button
-        calculateBtn.addEventListener('click', () => {
-            calculateBtn.textContent = 'מחשב...';
-            setTimeout(() => {
-                runFullSimulation();
-                calculateBtn.textContent = 'חשב והשווה';
-            }, 50); // slight delay to allow UI to update
-        });
-
-        // Tabs
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                tabBtns.forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.param-group').forEach(c => c.classList.remove('active'));
-                
-                const target = e.target.dataset.target;
-                e.target.classList.add('active');
-                document.getElementById(target).classList.add('active');
-            });
-        });
-
-        // Auto Toggles
-        autoToggles.forEach(toggle => {
-            toggle.addEventListener('change', (e) => {
-                const isAuto = e.target.checked;
-                const inputId = e.target.id.replace('auto-', '');
-                const input = document.getElementById(inputId);
-                
-                if (input) {
-                    input.disabled = isAuto;
-                    if (isAuto) {
-                        // Re-apply active scenario value when turned auto (fallback to base)
-                        const scenarioKey = scenarioSelect.value === 'custom' ? 'base' : scenarioSelect.value;
-                        const scenario = CONFIG.SCENARIOS[scenarioKey];
-                        
-                        // Map input id to scenario key
-                        const keyMap = {
-                            'inflation-rate': 'inflationRate',
-                            'mortgage-rate': 'mortgageRate',
-                            'property-appreciation': 'propertyAppreciation',
-                            'broker-fee': 'brokerFee',
-                            'lawyer-fee': 'lawyerFee',
-                            'stock-return': 'stockReturn',
-                            'management-fee': 'managementFee'
-                        };
-                        
-                        const key = keyMap[inputId];
-                        if (key && scenario[key] !== undefined) {
-                            input.value = scenario[key];
-                        }
-                    }
-                }
-                
-                // If user changes from auto to manual, set scenario to custom
-                if (!isAuto) {
-                    scenarioSelect.value = 'custom';
-                }
-
-                // Recompute so the result reflects the toggle change (consistent with scenario change)
-                runFullSimulation();
-            });
-        });
-
-        // Scenario Selector
-        scenarioSelect.addEventListener('change', (e) => {
-            updateFormFromScenario(e.target.value);
-            runFullSimulation();
-        });
-
-        // Inputs change -> auto custom
-        document.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('input', () => {
-                scenarioSelect.value = 'custom';
-            });
-        });
-
-        // Theme Toggle
-        themeToggle.addEventListener('click', () => {
-            const isDark = document.body.classList.contains('dark-mode');
-            if (isDark) {
-                document.body.classList.remove('dark-mode');
-                document.body.classList.add('light-mode');
-                localStorage.setItem('investvision_theme', 'light');
-            } else {
-                document.body.classList.remove('light-mode');
-                document.body.classList.add('dark-mode');
-                localStorage.setItem('investvision_theme', 'dark');
-            }
-            chartManager.updateTheme();
-        });
-
-        // Export (to be implemented in export.js)
-        exportPdfBtn.addEventListener('click', () => {
-            if (window.exportToPDF) window.exportToPDF();
-        });
-        
-        exportCsvBtn.addEventListener('click', () => {
-            if (window.exportToCSV && currentResults) window.exportToCSV(currentResults.yearlyData);
-        });
-    }
+    // --- Theme ---
 
     function initTheme() {
-        const savedTheme = localStorage.getItem('investvision_theme');
-        if (savedTheme === 'light') {
+        const saved = localStorage.getItem('investvision_theme');
+        if (saved === 'light') {
             document.body.classList.remove('dark-mode');
             document.body.classList.add('light-mode');
         }
     }
-
-    function saveSettingsToStorage(params) {
-        // Only save custom values to not override updates in future versions if auto is checked
-        localStorage.setItem('investvision_params', JSON.stringify(params));
-        localStorage.setItem('investvision_scenario', scenarioSelect.value);
-        
-        const togglesState = {};
-        autoToggles.forEach(toggle => {
-            togglesState[toggle.id] = toggle.checked;
-        });
-        localStorage.setItem('investvision_toggles', JSON.stringify(togglesState));
+    function toggleTheme() {
+        const isDark = document.body.classList.contains('dark-mode');
+        document.body.classList.toggle('dark-mode', !isDark);
+        document.body.classList.toggle('light-mode', isDark);
+        localStorage.setItem('investvision_theme', isDark ? 'light' : 'dark');
+        chartManager.updateTheme();
     }
 
-    function loadSettingsFromStorage() {
+    // --- Storage ---
+
+    function wizardInputs() {
+        return Array.from(document.querySelectorAll('#view-wizard input[id]'));
+    }
+    function saveSettings() {
+        const data = { mode: getMode(), fields: {} };
+        wizardInputs().forEach(el => { data.fields[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+    function loadSettings() {
         try {
-            const savedScenario = localStorage.getItem('investvision_scenario');
-            if (savedScenario) {
-                scenarioSelect.value = savedScenario;
-            }
-
-            const savedParams = JSON.parse(localStorage.getItem('investvision_params'));
-            if (savedParams && savedScenario === 'custom') {
-                Object.keys(savedParams).forEach(key => {
-                    // Convert camelCase to kebab-case to find the DOM element
-                    const id = key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+            if (!data) return;
+            if (data.mode) document.body.dataset.mode = data.mode;
+            if (data.fields) {
+                Object.keys(data.fields).forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) el.value = savedParams[key];
-                });
-            }
-
-            const savedToggles = JSON.parse(localStorage.getItem('investvision_toggles'));
-            if (savedToggles) {
-                autoToggles.forEach(toggle => {
-                    if (savedToggles[toggle.id] !== undefined) {
-                        toggle.checked = savedToggles[toggle.id];
-                        const inputId = toggle.id.replace('auto-', '');
-                        const input = document.getElementById(inputId);
-                        if(input) input.disabled = toggle.checked;
-                    }
+                    if (!el) return;
+                    if (el.type === 'checkbox') el.checked = !!data.fields[id];
+                    else el.value = data.fields[id];
                 });
             }
         } catch (e) {
-            console.error("Error loading settings from local storage", e);
+            console.error('Failed to load settings', e);
         }
     }
+
+    // --- Events ---
+
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    document.getElementById('theme-toggle-landing').addEventListener('click', toggleTheme);
+
+    document.getElementById('edit-answers-btn').addEventListener('click', () => showView('wizard'));
+    document.getElementById('restart-btn').addEventListener('click', () => showView('landing'));
+
+    document.getElementById('export-pdf-btn').addEventListener('click', () => {
+        if (window.exportToPDF) window.exportToPDF();
+    });
+    document.getElementById('export-csv-btn').addEventListener('click', () => {
+        if (window.exportToCSV && currentResults) window.exportToCSV(currentResults);
+    });
+
+    // --- Init ---
+
+    loadSettings();
+    initTheme();
+    setupMoneyInputs();
+
+    // Public API for wizard.js
+    window.IV = {
+        showView,
+        runAndShowResults,
+        getParams: getParamsFromForm,
+        getMode,
+        formatCurrency,
+        saveSettings
+    };
 });
