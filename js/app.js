@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Rent means different things per mode (same engine field)
             monthlyRent: mode === 'housing' ? numFromField('living-rent') : numFromField('monthly-rent'),
+            rentGrowth: numFromField('rent-growth'),
             vacancyMonths: Math.min(12, Math.max(0, numFromField('vacancy-months'))),
             rentalTax: Math.max(0, numFromField('rental-tax')),
 
@@ -116,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateDashboard(summary, labels);
         renderCashflowTable(currentResults);
+        renderBreakdown(currentResults);
 
         chartManager.renderNetWorthChart('netWorthChart', currentResults.yearlyData, labels);
         chartManager.renderMonteCarloChart('monteCarloChart', currentMcResults, labels);
@@ -195,8 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
         } else {
             title.textContent = 'תזרים שנתי: נכס להשקעה';
-            help.textContent = 'כל שנה: הכנסת שכירות פחות הוצאות והחזר משכנתא. תזרים שלילי = כסף שאתה מזרים מהכיס. שים לב לשנים הראשונות.';
-            cols = ['שנה', 'הכנסת שכירות', 'הוצאות', 'החזר משכנתא', 'תזרים נטו', 'מצטבר (מהכיס)'];
+            help.textContent = 'כל שנה: הכנסת שכירות פחות הוצאות והחזר משכנתא. תזרים שלילי = כסף שאתה מזרים מהכיס; תזרים חיובי נצבר כמזומן. שים לב איך המצטבר הופך מחיסרון להכנסה לאורך השנים.';
+            cols = ['שנה', 'הכנסת שכירות', 'הוצאות', 'החזר משכנתא', 'תזרים נטו', 'תזרים מצטבר'];
             head.innerHTML = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
             body.innerHTML = results.yearlyData.map(d => {
                 const cf = d.cf;
@@ -205,6 +207,48 @@ document.addEventListener('DOMContentLoaded', () => {
                        `<td>${round(cf.mortgage)}</td><td${cls}>${round(cf.net)}</td><td>${round(cf.cumulative)}</td></tr>`;
             }).join('');
         }
+    }
+
+    // --- Transparency breakdown: what actually built each side's final number ---
+
+    function renderBreakdownTable(tbodyId, rows, finalValue) {
+        const tbody = document.getElementById(tbodyId);
+        const fmt = window.IV.formatCurrency;
+        tbody.innerHTML = rows.map(r => {
+            const cls = r.amount < 0 ? ' class="neg"' : '';
+            const sign = r.amount >= 0 ? '+' : '−';
+            return `<tr><td>${r.label}</td><td${cls}>${sign}${fmt(Math.abs(r.amount))}</td></tr>`;
+        }).join('') + `<tr class="breakdown-total"><td>סה"כ</td><td>${fmt(finalValue)}</td></tr>`;
+    }
+
+    function buildBreakdownInsight(summary) {
+        const bd = summary.breakdown;
+        if (!bd) return '';
+        const fmt = window.IV.formatCurrency;
+        const items = [];
+        bd.re.forEach(r => { if (r.label !== 'הון עצמי התחלתי') items.push({ label: `${r.label} (${summary.labels.re})`, amount: r.amount }); });
+        bd.stock.forEach(r => { if (r.label !== 'הון עצמי התחלתי') items.push({ label: `${r.label} (${summary.labels.stock})`, amount: r.amount }); });
+        items.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+        const top = items.slice(0, 3).map(it => `${it.label}: ${it.amount >= 0 ? '+' : '−'}${fmt(Math.abs(it.amount))}`);
+        let txt = `הגורמים המשמעותיים ביותר: ${top.join(' · ')}.`;
+        if (bd.leverage && bd.leverage.loanAmount > 0) {
+            const lev = bd.leverage;
+            txt += lev.net >= 0
+                ? ` המינוף (${fmt(lev.loanAmount)} מהבנק) היה משתלם: עליית הערך על הכסף שהבנק מימן (${fmt(lev.gainOnLoan)}) עלתה על הריבית ששולמה (${fmt(lev.interestPaid)}) — נטו ${fmt(lev.net)}+.`
+                : ` המינוף (${fmt(lev.loanAmount)} מהבנק) עלה יותר משהוא תרם: הריבית ששולמה (${fmt(lev.interestPaid)}) עלתה על עליית הערך שיוחסה לכסף הבנק (${fmt(lev.gainOnLoan)}) — נטו ${fmt(Math.abs(lev.net))}−.`;
+        }
+        return txt;
+    }
+
+    function renderBreakdown(results) {
+        const summary = results.summary;
+        const bd = summary.breakdown;
+        if (!bd) return;
+        document.getElementById('breakdown-label-re').textContent = summary.labels.re;
+        document.getElementById('breakdown-label-stock').textContent = summary.labels.stock;
+        renderBreakdownTable('breakdown-body-re', bd.re, summary.finalReNetWorth);
+        renderBreakdownTable('breakdown-body-stock', bd.stock, summary.finalStockNetWorth);
+        document.getElementById('breakdown-insight').textContent = buildBreakdownInsight(summary);
     }
 
     // --- Money inputs (thousands separators) ---

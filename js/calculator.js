@@ -30,9 +30,10 @@ class FinancialCalculator {
                (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
     }
 
-    // One year of amortization; returns amount paid and the new balance (stops at payoff).
+    // One year of amortization; returns amount paid, its interest/principal split, and the new balance (stops at payoff).
     amortizeYear(balance, annualRate, pmt) {
         let paid = 0;
+        let interestPaid = 0;
         if (balance > 0 && pmt > 0) {
             const monthlyRate = annualRate / 100 / 12;
             for (let m = 0; m < 12 && balance > 0; m++) {
@@ -42,10 +43,11 @@ class FinancialCalculator {
                 if (principalPaid >= balance) { principalPaid = balance; payment = interest + principalPaid; }
                 balance -= principalPaid;
                 paid += payment;
+                interestPaid += interest;
             }
             if (balance < 0) balance = 0;
         }
-        return { paid, balance };
+        return { paid, interestPaid, balance };
     }
 
     // Split the required loan into a bank mortgage (capped by LTV) and a non-bank / family gap loan.
@@ -106,58 +108,72 @@ class FinancialCalculator {
         const maxLtv = this.params.maxLtv ?? CONFIG.FINANCING.MAX_LTV_INVESTOR;
         const extRate = this.params.externalLoanRate ?? CONFIG.FINANCING.EXTERNAL_LOAN_RATE;
         const extYears = this.params.externalLoanYears ?? CONFIG.FINANCING.EXTERNAL_LOAN_YEARS;
+        const rentGrowthRate = this.params.rentGrowth ?? this.params.propertyAppreciation;
 
         const purchaseTax = this.calculatePurchaseTax(propertyValueInitial, CONFIG.REAL_ESTATE.PURCHASE_TAX_BRACKETS_INVESTOR);
         const brokerFee = propertyValueInitial * (this.params.brokerFee / 100) * (1 + vat);
         const lawyerFee = propertyValueInitial * (this.params.lawyerFee / 100) * (1 + vat);
         const appraiserFee = (this.params.appraiserFee ?? CONFIG.REAL_ESTATE.APPRAISER_FEE) * (1 + vat);
         const advisorFee = (this.params.advisorFee ?? CONFIG.REAL_ESTATE.MORTGAGE_ADVISOR_FEE) * (1 + vat);
-        const totalAcquisitionCosts = purchaseTax + brokerFee + lawyerFee + appraiserFee + advisorFee;
+        const acquisitionFees = brokerFee + lawyerFee + appraiserFee + advisorFee;
+        const totalAcquisitionCosts = purchaseTax + acquisitionFees;
 
         const fin = this.planFinancing(propertyValueInitial, initialCapital - totalAcquisitionCosts, maxLtv);
         const leftoverCapital = fin.leftover;
+        const initialLoanAmount = fin.bankLoan + fin.externalLoan;
         let bankBalance = fin.bankLoan;
         let extBalance = fin.externalLoan;
         const bankPmt = this.calculateMortgagePayment(bankBalance, this.params.mortgageRate, mortgageYears);
         const extPmt = this.calculateMortgagePayment(extBalance, extRate, extYears);
 
         // Stock side
-        let stockPortfolioValue = initialCapital;
         const stockBuySellFee = (this.params.stockBuySellFee ?? CONFIG.STOCK_MARKET.BUY_SELL_FEE * 100) / 100;
         const currencyConversionFee = (this.params.currencyConversionFee ?? CONFIG.STOCK_MARKET.CURRENCY_CONVERSION_FEE * 100) / 100;
         const stockGainsTax = (this.params.stockGainsTax ?? 25) / 100;
         const totalStockBuyFee = stockBuySellFee + currencyConversionFee;
-        stockPortfolioValue -= stockPortfolioValue * totalStockBuyFee;
+        const initialStockBuyFeeAmount = initialCapital * totalStockBuyFee;
+        let stockPortfolioValue = initialCapital - initialStockBuyFeeAmount;
         const stockInitialBasis = stockPortfolioValue;
 
         let currentPropertyValue = propertyValueInitial;
         let cumulativeReCashFlow = 0;
         let cumulativeStockMgmtFees = 0;
+        let cumulativeStockGrowth = 0;
         let cumulativeRentalTax = 0;
+        let cumulativeRentIncome = 0;
+        let cumulativeOperatingExpenses = 0;
+        let cumulativeInterestPaid = 0;
         const inflationMultiplier = 1 + (this.params.inflationRate / 100);
+        const rentGrowthMultiplier = 1 + (rentGrowthRate / 100);
 
         for (let year = 1; year <= years; year++) {
             currentPropertyValue *= (1 + (this.params.propertyAppreciation / 100));
 
-            const monthlyRentAdjusted = this.params.monthlyRent * Math.pow(inflationMultiplier, year - 1);
+            const monthlyRentAdjusted = this.params.monthlyRent * Math.pow(rentGrowthMultiplier, year - 1);
             const yearlyRentIncome = monthlyRentAdjusted * (12 - this.params.vacancyMonths);
+            cumulativeRentIncome += yearlyRentIncome;
 
             const maintenanceCost = currentPropertyValue * (this.params.maintenanceYearly / 100);
             const insuranceCost = insuranceYearly * Math.pow(inflationMultiplier, year - 1);
             const rentalTaxCost = yearlyRentIncome * rentalTaxRate;
             cumulativeRentalTax += rentalTaxCost;
+            // Building-committee fees are the tenant's expense in a rental; only the periodic refresh stays on the owner.
             const periodic = this.propertyPeriodicCosts(year, inflationMultiplier);
+            cumulativeOperatingExpenses += maintenanceCost + insuranceCost + periodic.reno;
 
             const bank = this.amortizeYear(bankBalance, this.params.mortgageRate, bankPmt); bankBalance = bank.balance;
             const ext = this.amortizeYear(extBalance, extRate, extPmt); extBalance = ext.balance;
             const mortgageYearlyPayment = bank.paid + ext.paid;
+            cumulativeInterestPaid += bank.interestPaid + ext.interestPaid;
             const debt = bankBalance + extBalance;
 
-            const expenses = maintenanceCost + insuranceCost + rentalTaxCost + periodic.total;
+            const expenses = maintenanceCost + insuranceCost + rentalTaxCost + periodic.reno;
             const yearlyReCashFlow = yearlyRentIncome - expenses - mortgageYearlyPayment;
-            cumulativeReCashFlow += Math.min(0, yearlyReCashFlow);
+            cumulativeReCashFlow += yearlyReCashFlow;
 
+            const prevStockValue = stockPortfolioValue;
             stockPortfolioValue *= (1 + (this.params.stockReturn / 100));
+            cumulativeStockGrowth += stockPortfolioValue - prevStockValue;
             const yearlyMgmtFee = stockPortfolioValue * (this.params.managementFee / 100);
             cumulativeStockMgmtFees += yearlyMgmtFee;
             stockPortfolioValue -= yearlyMgmtFee;
@@ -191,6 +207,31 @@ class FinancialCalculator {
         const stockTax = stockRealProfit > 0 ? stockRealProfit * stockGainsTax : 0;
         const finalStockNetWorth = stockValueAfterFees - stockTax;
 
+        const appreciation = currentPropertyValue - propertyValueInitial;
+        const gainOnLoanPortion = propertyValueInitial > 0 ? initialLoanAmount * (currentPropertyValue / propertyValueInitial - 1) : 0;
+
+        // Each row's `amount` sums exactly to finalReNetWorth / finalStockNetWorth — this is the transparency report.
+        const reBreakdown = [
+            { label: 'הון עצמי התחלתי', amount: initialCapital },
+            { label: 'מס רכישה', amount: -purchaseTax },
+            { label: 'עלויות רכישה (תיווך, עו"ד, שמאי, יועץ)', amount: -acquisitionFees },
+            { label: 'עליית ערך הנכס', amount: appreciation },
+            { label: 'הכנסות שכירות מצטברות', amount: cumulativeRentIncome },
+            { label: 'הוצאות שוטפות (תחזוקה, ביטוח, שיפוצים)', amount: -cumulativeOperatingExpenses },
+            { label: 'מס על הכנסות שכירות', amount: -cumulativeRentalTax },
+            { label: 'ריבית משכנתא ששולמה', amount: -cumulativeInterestPaid },
+            { label: 'מס שבח במכירה', amount: -masShevach },
+            { label: 'עלויות מכירה', amount: -saleCosts }
+        ];
+        const stockBreakdown = [
+            { label: 'הון עצמי התחלתי', amount: initialCapital },
+            { label: 'עמלת קנייה ראשונית', amount: -initialStockBuyFeeAmount },
+            { label: 'רווחי שוק ברוטו', amount: cumulativeStockGrowth },
+            { label: 'דמי ניהול מצטברים', amount: -cumulativeStockMgmtFees },
+            { label: 'עמלת מכירה', amount: -finalStockSellFee },
+            { label: 'מס רווחי הון', amount: -stockTax }
+        ];
+
         results.summary = {
             mode: 'investment',
             labels: { re: 'נדל"ן (השכרה)', stock: 'שוק ההון' },
@@ -198,12 +239,22 @@ class FinancialCalculator {
             financing: { bankLoan: fin.bankLoan, externalLoan: fin.externalLoan },
             totalReTaxes: purchaseTax + masShevach + cumulativeRentalTax,
             totalStockTaxes: stockTax,
-            totalReFees: (totalAcquisitionCosts - purchaseTax) + saleCosts,
-            totalStockFees: (initialCapital * totalStockBuyFee) + finalStockSellFee + cumulativeStockMgmtFees,
+            totalReFees: acquisitionFees + saleCosts,
+            totalStockFees: initialStockBuyFeeAmount + finalStockSellFee + cumulativeStockMgmtFees,
             reROI: initialCapital > 0 ? ((finalReNetWorth - initialCapital) / initialCapital) * 100 : 0,
             stockROI: initialCapital > 0 ? ((finalStockNetWorth - initialCapital) / initialCapital) * 100 : 0,
             winner: finalReNetWorth > finalStockNetWorth ? 'real-estate' : 'stock',
-            difference: Math.abs(finalReNetWorth - finalStockNetWorth)
+            difference: Math.abs(finalReNetWorth - finalStockNetWorth),
+            breakdown: {
+                re: reBreakdown,
+                stock: stockBreakdown,
+                leverage: {
+                    loanAmount: initialLoanAmount,
+                    gainOnLoan: gainOnLoanPortion,
+                    interestPaid: cumulativeInterestPaid,
+                    net: gainOnLoanPortion - cumulativeInterestPaid
+                }
+            }
         };
         return results;
     }
@@ -224,19 +275,20 @@ class FinancialCalculator {
         const maxLtv = this.params.maxLtv ?? CONFIG.FINANCING.MAX_LTV_RESIDENT;
         const extRate = this.params.externalLoanRate ?? CONFIG.FINANCING.EXTERNAL_LOAN_RATE;
         const extYears = this.params.externalLoanYears ?? CONFIG.FINANCING.EXTERNAL_LOAN_YEARS;
-        const sqm = this.params.apartmentSqm || CONFIG.DEFAULTS.apartmentSqm;
-        const arnonaYearlyBase = this.params.arnonaYearly ?? (sqm * CONFIG.REAL_ESTATE.ARNONA_PER_SQM_YEARLY);
+        const rentGrowthRate = this.params.rentGrowth ?? this.params.propertyAppreciation;
 
         const purchaseTax = this.calculatePurchaseTax(propertyValueInitial, CONFIG.REAL_ESTATE.PURCHASE_TAX_BRACKETS_RESIDENT);
         const brokerFee = propertyValueInitial * (this.params.brokerFee / 100) * (1 + vat);
         const lawyerFee = propertyValueInitial * (this.params.lawyerFee / 100) * (1 + vat);
         const appraiserFee = (this.params.appraiserFee ?? CONFIG.REAL_ESTATE.APPRAISER_FEE) * (1 + vat);
         const advisorFee = (this.params.advisorFee ?? CONFIG.REAL_ESTATE.MORTGAGE_ADVISOR_FEE) * (1 + vat);
-        const totalAcquisitionCosts = purchaseTax + brokerFee + lawyerFee + appraiserFee + advisorFee;
+        const acquisitionFees = brokerFee + lawyerFee + appraiserFee + advisorFee;
+        const totalAcquisitionCosts = purchaseTax + acquisitionFees;
         const setup = this.calculateSetupCosts();
 
         const fin = this.planFinancing(propertyValueInitial, initialCapital - totalAcquisitionCosts - setup.total, maxLtv);
         const leftoverCapital = fin.leftover;
+        const initialLoanAmount = fin.bankLoan + fin.externalLoan;
         let bankBalance = fin.bankLoan;
         let extBalance = fin.externalLoan;
         const bankPmt = this.calculateMortgagePayment(bankBalance, this.params.mortgageRate, mortgageYears);
@@ -246,13 +298,18 @@ class FinancialCalculator {
         const currencyConversionFee = (this.params.currencyConversionFee ?? CONFIG.STOCK_MARKET.CURRENCY_CONVERSION_FEE * 100) / 100;
         const stockGainsTax = (this.params.stockGainsTax ?? 25) / 100;
         const totalStockBuyFee = stockBuySellFee + currencyConversionFee;
-        let portfolio = initialCapital - initialCapital * totalStockBuyFee;
+        const initialStockBuyFeeAmount = initialCapital * totalStockBuyFee;
+        let portfolio = initialCapital - initialStockBuyFeeAmount;
         const stockInitialBasis = portfolio;
         let cumulativeContrib = 0;
+        let cumulativeContribBasis = 0; // inflation-adjusted cost basis of contributions, for real capital-gains tax
         let cumulativeStockMgmtFees = 0;
+        let cumulativeStockGrowth = 0;
+        let cumulativeInterestPaid = 0;
 
         let currentPropertyValue = propertyValueInitial;
         const inflationMultiplier = 1 + (this.params.inflationRate / 100);
+        const rentGrowthMultiplier = 1 + (rentGrowthRate / 100);
         const monthlyReturn = Math.pow(1 + this.params.stockReturn / 100, 1 / 12) - 1;
 
         for (let year = 1; year <= years; year++) {
@@ -260,26 +317,33 @@ class FinancialCalculator {
 
             const maintenanceCost = currentPropertyValue * (this.params.maintenanceYearly / 100);
             const insuranceCost = insuranceYearly * Math.pow(inflationMultiplier, year - 1);
-            const arnonaCost = arnonaYearlyBase * Math.pow(inflationMultiplier, year - 1);
+            // Arnona + building committee fees would be paid by a renter too — they cancel out of the buy-vs-rent comparison.
             const periodic = this.propertyPeriodicCosts(year, inflationMultiplier);
 
             const bank = this.amortizeYear(bankBalance, this.params.mortgageRate, bankPmt); bankBalance = bank.balance;
             const ext = this.amortizeYear(extBalance, extRate, extPmt); extBalance = ext.balance;
             const mortgageYearlyPayment = bank.paid + ext.paid;
+            cumulativeInterestPaid += bank.interestPaid + ext.interestPaid;
             const debt = bankBalance + extBalance;
 
-            const buyerYearlyHousingCost = mortgageYearlyPayment + maintenanceCost + insuranceCost + arnonaCost + periodic.total;
+            const buyerYearlyHousingCost = mortgageYearlyPayment + maintenanceCost + insuranceCost + periodic.reno;
             const buyerMonthly = buyerYearlyHousingCost / 12;
 
-            const renterMonthly = (this.params.monthlyRent || CONFIG.DEFAULTS.livingRentMonthly) * Math.pow(inflationMultiplier, year - 1);
+            const renterMonthly = (this.params.monthlyRent || CONFIG.DEFAULTS.livingRentMonthly) * Math.pow(rentGrowthMultiplier, year - 1);
             const renterYearlyRent = renterMonthly * 12;
             const monthlyContribution = buyerMonthly - renterMonthly;
 
             for (let m = 0; m < 12; m++) {
+                const prevPortfolio = portfolio;
                 portfolio *= (1 + monthlyReturn);
+                cumulativeStockGrowth += portfolio - prevPortfolio;
                 portfolio += monthlyContribution;
             }
-            cumulativeContrib += monthlyContribution * 12;
+            const yearlyContribution = monthlyContribution * 12;
+            cumulativeContrib += yearlyContribution;
+            if (yearlyContribution > 0) {
+                cumulativeContribBasis += yearlyContribution * Math.pow(inflationMultiplier, years - year);
+            }
             const yearlyMgmtFee = portfolio * (this.params.managementFee / 100);
             cumulativeStockMgmtFees += yearlyMgmtFee;
             portfolio -= yearlyMgmtFee;
@@ -295,7 +359,7 @@ class FinancialCalculator {
                 yearlyRentIncome: renterYearlyRent,
                 inflationAdjustedReNetWorth: buyNetWorth / Math.pow(inflationMultiplier, year),
                 inflationAdjustedStockValue: portfolio / Math.pow(inflationMultiplier, year),
-                cf: { rent: renterYearlyRent, buyerCost: buyerYearlyHousingCost, mortgage: mortgageYearlyPayment, invested: monthlyContribution * 12, cumulative: cumulativeContrib }
+                cf: { rent: renterYearlyRent, buyerCost: buyerYearlyHousingCost, mortgage: mortgageYearlyPayment, invested: yearlyContribution, cumulative: cumulativeContrib }
             });
         }
 
@@ -309,10 +373,35 @@ class FinancialCalculator {
 
         const finalStockSellFee = portfolio * (stockBuySellFee + currencyConversionFee);
         const portfolioAfterFees = portfolio - finalStockSellFee;
-        const costBasis = stockInitialBasis + Math.max(0, cumulativeContrib);
+        const costBasis = stockInitialBasis * totalInflationMultiplier + cumulativeContribBasis;
         const stockRealProfit = portfolioAfterFees - costBasis;
         const stockTax = stockRealProfit > 0 ? stockRealProfit * stockGainsTax : 0;
         const finalStockNetWorth = portfolioAfterFees - stockTax;
+
+        const appreciation = currentPropertyValue - propertyValueInitial;
+        const totalPrincipalPaid = initialLoanAmount - finalDebt;
+        const gainOnLoanPortion = propertyValueInitial > 0 ? initialLoanAmount * (currentPropertyValue / propertyValueInitial - 1) : 0;
+
+        // Each row's `amount` sums exactly to finalReNetWorth / finalStockNetWorth — this is the transparency report.
+        const reBreakdown = [
+            { label: 'הון עצמי התחלתי', amount: initialCapital },
+            { label: 'מס רכישה', amount: -purchaseTax },
+            { label: 'עלויות רכישה (תיווך, עו"ד, שמאי, יועץ)', amount: -acquisitionFees },
+            { label: 'עלויות כניסה לדירה (שיפוץ, ריהוט, מטבח...)', amount: -setup.total },
+            { label: 'עליית ערך הנכס', amount: appreciation },
+            { label: 'הון שנצבר דרך החזרי קרן המשכנתא', amount: totalPrincipalPaid },
+            { label: 'עלויות מכירה', amount: -saleCosts },
+            { label: 'מס שבח במכירה', amount: -masShevach }
+        ];
+        const stockBreakdown = [
+            { label: 'הון עצמי התחלתי', amount: initialCapital },
+            { label: 'עמלת קנייה ראשונית', amount: -initialStockBuyFeeAmount },
+            { label: 'רווחי שוק ברוטו', amount: cumulativeStockGrowth },
+            { label: 'הפרש שכ"ד מול עלות דיור שהושקע', amount: cumulativeContrib },
+            { label: 'דמי ניהול מצטברים', amount: -cumulativeStockMgmtFees },
+            { label: 'עמלת מכירה', amount: -finalStockSellFee },
+            { label: 'מס רווחי הון', amount: -stockTax }
+        ];
 
         results.summary = {
             mode: 'housing',
@@ -321,12 +410,22 @@ class FinancialCalculator {
             financing: { bankLoan: fin.bankLoan, externalLoan: fin.externalLoan },
             totalReTaxes: purchaseTax + masShevach,
             totalStockTaxes: stockTax,
-            totalReFees: (totalAcquisitionCosts - purchaseTax) + saleCosts + setup.total,
-            totalStockFees: (initialCapital * totalStockBuyFee) + finalStockSellFee + cumulativeStockMgmtFees,
+            totalReFees: acquisitionFees + saleCosts + setup.total,
+            totalStockFees: initialStockBuyFeeAmount + finalStockSellFee + cumulativeStockMgmtFees,
             reROI: initialCapital > 0 ? ((finalReNetWorth - initialCapital) / initialCapital) * 100 : 0,
             stockROI: initialCapital > 0 ? ((finalStockNetWorth - initialCapital) / initialCapital) * 100 : 0,
             winner: finalReNetWorth > finalStockNetWorth ? 'real-estate' : 'stock',
-            difference: Math.abs(finalReNetWorth - finalStockNetWorth)
+            difference: Math.abs(finalReNetWorth - finalStockNetWorth),
+            breakdown: {
+                re: reBreakdown,
+                stock: stockBreakdown,
+                leverage: {
+                    loanAmount: initialLoanAmount,
+                    gainOnLoan: gainOnLoanPortion,
+                    interestPaid: cumulativeInterestPaid,
+                    net: gainOnLoanPortion - cumulativeInterestPaid
+                }
+            }
         };
         return results;
     }

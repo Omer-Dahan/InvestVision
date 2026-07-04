@@ -33,6 +33,7 @@ class MonteCarloSimulation {
             maxLtv: this.params.maxLtv ?? (housing ? CONFIG.FINANCING.MAX_LTV_RESIDENT : CONFIG.FINANCING.MAX_LTV_INVESTOR),
             extRate: this.params.externalLoanRate ?? CONFIG.FINANCING.EXTERNAL_LOAN_RATE,
             extYears: this.params.externalLoanYears ?? CONFIG.FINANCING.EXTERNAL_LOAN_YEARS,
+            rentGrowthRate: this.params.rentGrowth ?? this.params.propertyAppreciation,
             // tail risks
             contractorProb: this.params.offPlan ? (this.params.contractorRiskProb ?? 0) / 100 : 0,
             contractorLoss: (this.params.contractorLossPct ?? 0) / 100,
@@ -78,6 +79,7 @@ class MonteCarloSimulation {
         if (this.contractorHit(c)) currentPropertyValue *= (1 - c.contractorLoss);
         let cumulativeReCashFlow = 0;
         const inflationMultiplier = 1 + (p.inflationRate / 100);
+        const rentGrowthMultiplier = 1 + (c.rentGrowthRate / 100);
 
         for (let year = 1; year <= years; year++) {
             const stockYearReturn = Math.max(-1, this.randomNormal(p.stockReturn / 100, c.stockVol));
@@ -89,16 +91,17 @@ class MonteCarloSimulation {
             currentPropertyValue *= (1 + reYearReturn);
             if (Math.random() < c.disasterProb) currentPropertyValue *= (1 - c.disasterLoss);
 
-            const yearlyRentIncome = p.monthlyRent * Math.pow(inflationMultiplier, year - 1) * (12 - p.vacancyMonths);
+            const yearlyRentIncome = p.monthlyRent * Math.pow(rentGrowthMultiplier, year - 1) * (12 - p.vacancyMonths);
             const maintenanceCost = currentPropertyValue * (p.maintenanceYearly / 100);
             const insuranceCost = c.insuranceYearly * Math.pow(inflationMultiplier, year - 1);
             const rentalTaxCost = yearlyRentIncome * c.rentalTaxRate;
+            // Building-committee fees are the tenant's expense in a rental; only the periodic refresh stays on the owner.
             const periodic = this.propertyPeriodicCosts(p, year, inflationMultiplier);
 
             const bank = this.amortizeYear(bankBalance, p.mortgageRate, bankPmt); bankBalance = bank.balance;
             const ext = this.amortizeYear(extBalance, c.extRate, extPmt); extBalance = ext.balance;
 
-            cumulativeReCashFlow += Math.min(0, yearlyRentIncome - rentalTaxCost - maintenanceCost - insuranceCost - periodic.total - bank.paid - ext.paid);
+            cumulativeReCashFlow += yearlyRentIncome - rentalTaxCost - maintenanceCost - insuranceCost - periodic.reno - bank.paid - ext.paid;
         }
 
         const totalInflationMultiplier = Math.max(1, Math.pow(inflationMultiplier, years));
@@ -130,11 +133,11 @@ class MonteCarloSimulation {
         const extPmt = this.calculateMortgagePayment(extBalance, c.extRate, c.extYears);
 
         const inflationMultiplier = 1 + (p.inflationRate / 100);
-        const sqm = p.apartmentSqm || CONFIG.DEFAULTS.apartmentSqm;
-        const arnonaBase = p.arnonaYearly ?? (sqm * CONFIG.REAL_ESTATE.ARNONA_PER_SQM_YEARLY);
+        const rentGrowthMultiplier = 1 + (c.rentGrowthRate / 100);
 
         let currentPropertyValue = p.propertyValue;
         if (this.contractorHit(c)) currentPropertyValue *= (1 - c.contractorLoss);
+        let cumulativeContribBasis = 0;
 
         for (let year = 1; year <= years; year++) {
             const stockYearReturn = Math.max(-1, this.randomNormal(p.stockReturn / 100, c.stockVol));
@@ -146,18 +149,22 @@ class MonteCarloSimulation {
 
             const maintenanceCost = currentPropertyValue * (p.maintenanceYearly / 100);
             const insuranceCost = c.insuranceYearly * Math.pow(inflationMultiplier, year - 1);
-            const arnonaCost = arnonaBase * Math.pow(inflationMultiplier, year - 1);
+            // Arnona + building committee fees would be paid by a renter too — they cancel out of the buy-vs-rent comparison.
             const periodic = this.propertyPeriodicCosts(p, year, inflationMultiplier);
 
             const bank = this.amortizeYear(bankBalance, p.mortgageRate, bankPmt); bankBalance = bank.balance;
             const ext = this.amortizeYear(extBalance, c.extRate, extPmt); extBalance = ext.balance;
 
-            const buyerMonthly = (bank.paid + ext.paid + maintenanceCost + insuranceCost + arnonaCost + periodic.total) / 12;
-            const renterMonthly = (p.monthlyRent || CONFIG.DEFAULTS.livingRentMonthly) * Math.pow(inflationMultiplier, year - 1);
+            const buyerMonthly = (bank.paid + ext.paid + maintenanceCost + insuranceCost + periodic.reno) / 12;
+            const renterMonthly = (p.monthlyRent || CONFIG.DEFAULTS.livingRentMonthly) * Math.pow(rentGrowthMultiplier, year - 1);
             const contribution = buyerMonthly - renterMonthly;
 
             for (let m = 0; m < 12; m++) { portfolio *= (1 + monthlyReturn); portfolio += contribution; }
-            cumulativeContrib += contribution * 12;
+            const yearlyContribution = contribution * 12;
+            cumulativeContrib += yearlyContribution;
+            if (yearlyContribution > 0) {
+                cumulativeContribBasis += yearlyContribution * Math.pow(inflationMultiplier, years - year);
+            }
             portfolio -= portfolio * (p.managementFee / 100);
         }
 
@@ -169,7 +176,7 @@ class MonteCarloSimulation {
 
         const finalStockSellFee = portfolio * (c.stockBuySellFee + c.currencyConversionFee);
         const portfolioAfterFees = portfolio - finalStockSellFee;
-        const costBasis = stockInitialBasis + Math.max(0, cumulativeContrib);
+        const costBasis = stockInitialBasis * totalInflationMultiplier + cumulativeContribBasis;
         const stockRealProfit = portfolioAfterFees - costBasis;
         const stockTax = stockRealProfit > 0 ? stockRealProfit * c.stockGainsTax : 0;
         const stock = portfolioAfterFees - stockTax;
@@ -185,7 +192,7 @@ class MonteCarloSimulation {
         const pYears = p.periodicRenovationYears || 0;
         const reno = (pYears > 0 && year % pYears === 0)
             ? (p.periodicRenovationCost ?? 0) * Math.pow(inflationMultiplier, year - 1) : 0;
-        return { total: buildingFees + reno };
+        return { buildingFees, reno, total: buildingFees + reno };
     }
 
     planFinancing(propertyValue, cashForProperty, maxLtvPct) {

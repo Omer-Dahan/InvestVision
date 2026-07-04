@@ -190,6 +190,11 @@
                     <label for="monthly-rent">שכירות חודשית צפויה (הכנסה, ₪)</label>
                     <input type="text" inputmode="numeric" id="monthly-rent" class="money-input" value="6500">
                 </div>
+                <div class="param-row">
+                    <label for="rent-growth">עליית שכר הדירה השנתית (%)</label>
+                    <input type="number" id="rent-growth" value="5" step="0.1" min="0">
+                    <small class="source-note">ברירת מחדל: כמו עליית ערך הנכס. שכ"ד שצמוד רק לאינפלציה מטה את ההשוואה נגד הנדל"ן</small>
+                </div>
                 <div class="param-row" data-mode="investment">
                     <label for="vacancy-months">חודשי אי-תפוסה בשנה</label>
                     <input type="number" id="vacancy-months" value="1" step="0.1" min="0" max="12">
@@ -211,7 +216,7 @@
                 <div class="param-row">
                     <label for="building-fees">דמי ועד בית חודשיים (₪)</label>
                     <input type="number" id="building-fees" value="250" step="50" min="0">
-                    <small class="source-note">ניקיון, מעלית, חשמל לובי, שיפוצים משותפים</small>
+                    <small class="source-note">ניקיון, מעלית, חשמל לובי, שיפוצים משותפים — משולם גם ע"י שוכר, ולכן לא משפיע על ההשוואה</small>
                 </div>
                 <div class="param-row">
                     <label for="periodic-reno-cost">שיפוץ תקופתי של הדירה (₪)</label>
@@ -225,7 +230,7 @@
                 <div class="param-row" data-mode="housing">
                     <label for="arnona-yearly">ארנונה שנתית (₪)</label>
                     <input type="number" id="arnona-yearly" value="5000" step="100" min="0">
-                    <small class="source-note">אומדן ~50 ₪/מ"ר לשנה</small>
+                    <small class="source-note">אומדן ~50 ₪/מ"ר לשנה — משולם גם ע"י שוכר, ולכן לא משפיע על ההשוואה בין קנייה לשכירות</small>
                 </div>
             </div>
 
@@ -420,6 +425,25 @@
                             <h3>השוואת מיסוי ועמלות</h3>
                         </div>
                         <div class="chart-canvas"><canvas id="feesChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-wrapper surface breakdown-card">
+                <div class="chart-head">
+                    <span class="eyebrow">שקיפות</span>
+                    <h3>מה בנה את התוצאה?</h3>
+                    <p class="step__help">פירוק מלא של כל שקל בכל מסלול — מה תרם לרווח ומה עלה כסף. סכום השורות בכל טבלה שווה בדיוק לשווי הסופי שמוצג למעלה.</p>
+                </div>
+                <p class="breakdown-insight" id="breakdown-insight"></p>
+                <div class="breakdown-grid">
+                    <div class="breakdown-col">
+                        <h4 id="breakdown-label-re" class="breakdown-col__title real-estate-color"></h4>
+                        <table class="breakdown-table"><tbody id="breakdown-body-re"></tbody></table>
+                    </div>
+                    <div class="breakdown-col">
+                        <h4 id="breakdown-label-stock" class="breakdown-col__title stock-color"></h4>
+                        <table class="breakdown-table"><tbody id="breakdown-body-stock"></tbody></table>
                     </div>
                 </div>
             </div>

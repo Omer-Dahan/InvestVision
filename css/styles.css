@@ -950,6 +950,52 @@ canvas { max-width: 100%; }
 .cashflow-table tbody tr:hover { background: var(--surface-inset); }
 .cashflow-table td.neg { color: var(--re); }
 
+/* ---- Transparency breakdown ---- */
+.breakdown-card { gap: var(--space-sm); }
+.breakdown-insight {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    background: var(--surface-inset);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+}
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+}
+.breakdown-col__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+.breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-feature-settings: "tnum" 1;
+}
+.breakdown-table td {
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--border);
+}
+.breakdown-table td:first-child { font-family: var(--font-body); color: var(--text-secondary); }
+.breakdown-table td:last-child { text-align: end; white-space: nowrap; }
+.breakdown-table td.neg { color: var(--re); }
+.breakdown-table tr.breakdown-total td {
+    border-bottom: none;
+    border-top: 2px solid var(--border);
+    font-weight: 700;
+    color: var(--text-primary);
+    padding-top: 10px;
+}
+
+@media (max-width: 720px) {
+    .breakdown-grid { grid-template-columns: 1fr; }
+}
+
 .ltv-warning {
     margin-top: var(--space-sm);
     font-size: 0.82rem;

@@ -18,12 +18,13 @@ window.exportToCSV = function(results) {
 
     const housing = results.mode === 'housing';
     const round = n => Math.round(n);
+    const csvField = v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v;
 
     const headers = housing
         ? ['שנה', 'שווי נכס', 'יתרת משכנתא', 'שווי נקי - קנייה', 'תיק - שכירות+השקעה',
            'שכר דירה (שוכר)', 'עלות דיור (קונה)', 'מתוכו משכנתא', 'מושקע במדד', 'מצטבר מושקע']
         : ['שנה', 'שווי נכס', 'יתרת משכנתא', 'שווי נקי - נדלן', 'שווי תיק - מדד',
-           'הכנסת שכירות', 'הוצאות', 'החזר משכנתא', 'תזרים נטו', 'מצטבר (מהכיס)'];
+           'הכנסת שכירות', 'הוצאות', 'החזר משכנתא', 'תזרים נטו', 'תזרים מצטבר'];
 
     const rows = results.yearlyData.map(d => {
         const cf = d.cf || {};
@@ -36,6 +37,17 @@ window.exportToCSV = function(results) {
     let csvContent = "﻿"; // BOM for UTF-8 Excel support (Hebrew)
     csvContent += headers.join(",") + "\n";
     rows.forEach(r => { csvContent += r.join(",") + "\n"; });
+
+    const bd = results.summary && results.summary.breakdown;
+    if (bd) {
+        const labels = results.summary.labels || { re: 'נדל"ן', stock: 'שוק ההון' };
+        csvContent += "\n" + ['פירוק', csvField(labels.re)].join(",") + "\n";
+        bd.re.forEach(r => { csvContent += [csvField(r.label), round(r.amount)].join(",") + "\n"; });
+        csvContent += ['סה"כ', round(results.summary.finalReNetWorth)].join(",") + "\n";
+        csvContent += "\n" + ['פירוק', csvField(labels.stock)].join(",") + "\n";
+        bd.stock.forEach(r => { csvContent += [csvField(r.label), round(r.amount)].join(",") + "\n"; });
+        csvContent += ['סה"כ', round(results.summary.finalStockNetWorth)].join(",") + "\n";
+    }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
