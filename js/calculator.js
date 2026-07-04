@@ -193,6 +193,14 @@ class FinancialCalculator {
             });
         }
 
+        // Off-plan / contractor tail risk: applied here as an expected-value haircut (prob × loss) on the
+        // base-case property value, so checking the box actually moves the headline profit, not just the MC chart.
+        const appreciation = currentPropertyValue - propertyValueInitial;
+        const contractorExpectedLoss = this.params.offPlan
+            ? currentPropertyValue * ((this.params.contractorRiskProb ?? 0) / 100) * ((this.params.contractorLossPct ?? 0) / 100)
+            : 0;
+        currentPropertyValue -= contractorExpectedLoss;
+
         const totalInflationMultiplier = Math.max(1, Math.pow(inflationMultiplier, years));
         const finalDebt = bankBalance + extBalance;
         const saleCosts = currentPropertyValue * saleCostRate;
@@ -207,7 +215,6 @@ class FinancialCalculator {
         const stockTax = stockRealProfit > 0 ? stockRealProfit * stockGainsTax : 0;
         const finalStockNetWorth = stockValueAfterFees - stockTax;
 
-        const appreciation = currentPropertyValue - propertyValueInitial;
         const gainOnLoanPortion = propertyValueInitial > 0 ? initialLoanAmount * (currentPropertyValue / propertyValueInitial - 1) : 0;
 
         // Each row's `amount` sums exactly to finalReNetWorth / finalStockNetWorth — this is the transparency report.
@@ -216,6 +223,7 @@ class FinancialCalculator {
             { label: 'מס רכישה', amount: -purchaseTax },
             { label: 'עלויות רכישה (תיווך, עו"ד, שמאי, יועץ)', amount: -acquisitionFees },
             { label: 'עליית ערך הנכס', amount: appreciation },
+            { label: 'סיכון קבלן / אי-מסירה (ערך צפוי)', amount: -contractorExpectedLoss },
             { label: 'הכנסות שכירות מצטברות', amount: cumulativeRentIncome },
             { label: 'הוצאות שוטפות (תחזוקה, ביטוח, שיפוצים)', amount: -cumulativeOperatingExpenses },
             { label: 'מס על הכנסות שכירות', amount: -cumulativeRentalTax },
@@ -363,6 +371,14 @@ class FinancialCalculator {
             });
         }
 
+        // Off-plan / contractor tail risk: applied here as an expected-value haircut (prob × loss) on the
+        // base-case property value, so checking the box actually moves the headline profit, not just the MC chart.
+        const appreciation = currentPropertyValue - propertyValueInitial;
+        const contractorExpectedLoss = this.params.offPlan
+            ? currentPropertyValue * ((this.params.contractorRiskProb ?? 0) / 100) * ((this.params.contractorLossPct ?? 0) / 100)
+            : 0;
+        currentPropertyValue -= contractorExpectedLoss;
+
         const totalInflationMultiplier = Math.max(1, Math.pow(inflationMultiplier, years));
         const finalDebt = bankBalance + extBalance;
         const saleCosts = currentPropertyValue * saleCostRate;
@@ -378,7 +394,6 @@ class FinancialCalculator {
         const stockTax = stockRealProfit > 0 ? stockRealProfit * stockGainsTax : 0;
         const finalStockNetWorth = portfolioAfterFees - stockTax;
 
-        const appreciation = currentPropertyValue - propertyValueInitial;
         const totalPrincipalPaid = initialLoanAmount - finalDebt;
         const gainOnLoanPortion = propertyValueInitial > 0 ? initialLoanAmount * (currentPropertyValue / propertyValueInitial - 1) : 0;
 
@@ -389,6 +404,7 @@ class FinancialCalculator {
             { label: 'עלויות רכישה (תיווך, עו"ד, שמאי, יועץ)', amount: -acquisitionFees },
             { label: 'עלויות כניסה לדירה (שיפוץ, ריהוט, מטבח...)', amount: -setup.total },
             { label: 'עליית ערך הנכס', amount: appreciation },
+            { label: 'סיכון קבלן / אי-מסירה (ערך צפוי)', amount: -contractorExpectedLoss },
             { label: 'הון שנצבר דרך החזרי קרן המשכנתא', amount: totalPrincipalPaid },
             { label: 'עלויות מכירה', amount: -saleCosts },
             { label: 'מס שבח במכירה', amount: -masShevach }
